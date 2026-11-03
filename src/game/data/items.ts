@@ -96,7 +96,11 @@ export type ItemId =
   | "dollar"
   | "markeddeck"
   | "peekring"
-  | "dutchcoin";
+  | "dutchcoin"
+  | "loadeddice"
+  | "tarot"
+  | "policy"
+  | "spyglass";
 
 export type ItemKind = "charm" | "lucky" | "cheat";
 
@@ -262,9 +266,48 @@ export const ITEMS: Record<ItemId, ItemDef> = {
     kind: "cheat",
     text: "House blackjack: glimpse the dealer's hole card. Raises heat every hand.",
   },
+  loadeddice: {
+    id: "loadeddice",
+    name: "Loaded Dice",
+    glyph: "⁙",
+    color: C.red,
+    price: 900,
+    kind: "cheat",
+    consumable: true,
+    text: "Liar's dice duels: roll heavy-on-six dice for one round. Get caught and you forfeit.",
+  },
+  tarot: {
+    id: "tarot",
+    name: "The Fool Card",
+    glyph: "¶",
+    color: C.purple,
+    price: 1400,
+    kind: "lucky",
+    text: "Liar's dice: you glimpse one of their dice every round.",
+  },
+  policy: {
+    id: "policy",
+    name: "Insurance Policy",
+    glyph: "≡",
+    color: C.paper,
+    price: 1000,
+    kind: "lucky",
+    consumable: true,
+    text: "If a high roller cleans you out, it pays back half your stake. Then it's used up.",
+  },
+  spyglass: {
+    id: "spyglass",
+    name: "Captain's Spyglass",
+    glyph: "ø",
+    color: C.gold,
+    price: 2400,
+    kind: "charm",
+    text: "+1 Poker Read. It works on dice cups too.",
+    skill: ["read", 1],
+  },
 };
 
-/** Chance a Marked Deck is spotted in a duel. */
+/** Chance a Marked Deck or Loaded Dice are spotted in a duel. */
 export const MARKED_CAUGHT = 0.25;
 /** Heat for each house blackjack hand played with the Peek Ring. */
 export const PEEK_HEAT = 6;

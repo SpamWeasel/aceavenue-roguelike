@@ -15,7 +15,7 @@ import type { TableDef } from "../../../game/world";
 import type { App, Screen } from "../app";
 import { animMs } from "../settings";
 import { COLS, ROWS, type Term } from "../term";
-import { felt } from "./draw";
+import { drawDie, felt } from "./draw";
 import { NoticeScreen } from "./menus";
 import type { PlayScreen } from "./play";
 
@@ -27,46 +27,6 @@ const KIND_HELP: Record<CrapsBetKind, string> = {
   field: "One roll: wins on 2, 3, 4, 9, 10, 11, 12 (2 and 12 pay double). Loses on 5-8.",
   anySeven: "One roll: any 7 pays 4:1.",
 };
-
-const PIPS: Record<number, [number, number][]> = {
-  1: [[1, 1]],
-  2: [
-    [0, 0],
-    [2, 2],
-  ],
-  3: [
-    [0, 0],
-    [1, 1],
-    [2, 2],
-  ],
-  4: [
-    [0, 0],
-    [2, 0],
-    [0, 2],
-    [2, 2],
-  ],
-  5: [
-    [0, 0],
-    [2, 0],
-    [1, 1],
-    [0, 2],
-    [2, 2],
-  ],
-  6: [
-    [0, 0],
-    [2, 0],
-    [0, 1],
-    [2, 1],
-    [0, 2],
-    [2, 2],
-  ],
-};
-
-function drawDie(t: Term, x: number, y: number, n: number): void {
-  t.fill(x, y, 9, 5, " ", C.black, C.paper);
-  for (const [cx, cy] of PIPS[n])
-    t.put(x + 2 + cx * 2, y + 1 + cy, "●", n === 1 ? C.red : C.black, C.paper);
-}
 
 /** A craps table. You're always the shooter. */
 export class CrapsScreen implements Screen {

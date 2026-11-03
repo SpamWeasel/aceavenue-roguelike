@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CASINO_ORDER, CASINOS, ROLLER_BY_ID } from "../src/game/data/casinos";
+import { ALL_CASINOS, CASINO_ORDER, CASINOS, ROLLER_BY_ID } from "../src/game/data/casinos";
 import { Game } from "../src/game/game";
 import { Rng } from "../src/game/rng";
 import { buildCasino, buildStrip, reachable, T, tileAt, walkable } from "../src/game/world";
@@ -28,7 +28,7 @@ describe("the Avenue", () => {
 describe("casino floors", () => {
   it("are fully reachable for many seeds", () => {
     for (let seed = 1; seed <= 40; seed++) {
-      for (const id of CASINO_ORDER) {
+      for (const id of ALL_CASINOS) {
         const c = CASINOS[id];
         const a = buildCasino(c, seed * 7919);
         const reach = reachable(a);

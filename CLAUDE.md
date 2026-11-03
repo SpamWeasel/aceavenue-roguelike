@@ -36,8 +36,17 @@ setup (saves, smoke tests, packaging) is copied from it.
   steals; bumping him first calls `catchPickpocket`), and the rival Dutch (`RIVAL` in
   casinos.ts, `rivalDef()` scales stake/persona, `endRivalDuel`, never in `s.beaten`, use
   `rollerById`). Comp points: `houseResult` adds bet / `compUnit`; `redeem` at the cage.
-- **Saves:** whole `State` as JSON, `SAVE_VERSION` 2 (`Game.load` fills `comps` and `rival`
-  for 0.1 saves and moves you to the entry if a floor change put you inside a table).
+- **0.3 "Riverboat":** the Magnolia Belle (`belle`) is a *side* casino (`side: true`): it's in
+  `ALL_CASINOS` but not `CASINO_ORDER`, so it never gives a golden chip or changes `tier`;
+  its boss hands over the Baron's tell instead. Its door is on the east end of the Avenue
+  (`T.water` beside it). `liarsdice.ts` (`DiceRound`/`DiceMatch`, rollers with
+  `game: "dice"` reuse `PokerPersona`; a die lost is a fifth of the stake if you walk away,
+  the last with dice takes the pot) and `chuckaluck.ts` (`chuck` tables). Dutch never boards.
+  The Insurance Policy (`claimPolicy`) pays half the stake on a lost duel unless you were
+  caught cheating; `s.duel.stake` remembers the stake for it.
+- **Saves:** whole `State` as JSON, `SAVE_VERSION` 3 (`Game.load` fills `comps` and `rival`
+  for 0.1 saves and moves you to the entry if a floor change put you inside a table; 0.2 saves
+  need nothing new).
   3 slots in `%APPDATA%\AceAvenue\Saves` with rolling backups (from Rumble Row). A save is valid if it has numeric `version` and `cash`.
 - **Drawing:** `Term.draw` works in device pixels and snaps every rectangle, otherwise scaled
   displays show seams between cells.
@@ -52,7 +61,7 @@ setup (saves, smoke tests, packaging) is copied from it.
   fine as long as `Game.load` keeps you on a walkable square.
 - `pnpm exec tsx scripts/duels.mts [matches]` plays bot duels against every high roller and
   prints win rates (0.1: most 35-55% for a simple bot; Hank and Fontaine ~30%: they punish
-  calling stations).
+  calling stations. 0.3 dice: Zeke ~50%, Delphine ~45%, the Captain ~39%).
 - `pnpm dist` builds Windows zips, portable exes and installers for x64 and ARM64 into
   `release/<version>/` (BCJ 7-Zip filter forced, see `scripts/dist.mjs`).
 - `pnpm exec tsx scripts/make-icon.mts` redraws the ace-of-spades icon.

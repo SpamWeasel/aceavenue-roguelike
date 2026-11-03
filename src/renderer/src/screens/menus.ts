@@ -605,6 +605,10 @@ const HELP_PAGES: { title: string; lines: string[] }[] = [
       "Five casinos: the Rusty Spur, the Coral Grotto, the Starlight Lounge, the Velvet Fox,",
       "and the Pinnacle, where the Baron plays for $100,000. Beat him to win the game.",
       "",
+      "Once you hold the Coral Grotto's chip, the riverboat MAGNOLIA BELLE lets you aboard",
+      "at the pier, at the far east end of the Avenue. It's off the road to the Baron, but its",
+      "captain knows a secret about him.",
+      "",
       "If you go broke with nothing to pawn and Vinnie won't lend you more, your run is over.",
     ],
   },
@@ -625,6 +629,7 @@ const HELP_PAGES: { title: string; lines: string[] }[] = [
       "  •  Craps (from the Starlight Lounge on)",
       "  ▣  Video poker - Jacks or Better (read the pay table on the glass!)",
       "  P B T  Baccarat (from the Starlight Lounge on)",
+      "  ▒~  Chuck-a-luck, three dice in a birdcage (on the riverboat)",
       "The cashier cages are the Players' Club desk: house play earns points for perks.",
       "",
       "Gamblers (☺) know things. A white ☺ has gossip to sell: which slot is loose, which",
@@ -699,6 +704,28 @@ const HELP_PAGES: { title: string; lines: string[] }[] = [
       "hide their tells more often.",
       "",
       "Opponents notice when you bluff and they catch you. Bluff too often and they'll call.",
+    ],
+  },
+  {
+    title: "Liar's dice duels",
+    lines: [
+      "The riverboat crowd plays liar's dice. You each have five dice under a cup, and you",
+      "only see your own. ONES ARE WILD: they count as every face.",
+      "",
+      "Take turns bidding how many dice of one face are on the WHOLE table, yours and theirs.",
+      'Each bid must be higher: more dice, or the same number of a higher face ("3 fours"',
+      'beats "3 threes"; "4 twos" beats both). Instead of bidding, you can call "Liar!".',
+      "Up come the cups. If there are at least that many, the caller loses a die; if not,",
+      "the bidder does. Whoever lost a die opens the next round.",
+      "",
+      "The last one with dice takes the whole pot. Walk away early and you keep a fifth of",
+      "the stake for every die you still have.",
+      "",
+      "Up/Down sets how many, Left/Right (or 2-6) sets the face, Enter bids, L calls.",
+      "",
+      "On average, a third of the dice you can't see will match any face. Their bids give",
+      "their hand away a little (or they're lying). Poker Read works on dice players' tells",
+      "too, Poker Face hides your bluffs, and Card Sense works out the odds of a bid for you.",
     ],
   },
 ];
@@ -962,6 +989,23 @@ export class SheetScreen implements Screen {
           `Heat ${heat}${s.banned[id] ? " - banned" : ""}`,
           s.banned[id] ? C.red : C.orange,
         );
+    }
+    {
+      const c = CASINOS.belle;
+      const open = s.chips.includes(CASINO_ORDER[c.tier - 2]);
+      const all = [...c.rollers, c.boss];
+      const done = all.filter((r) => g.beaten(r.id)).length;
+      py++;
+      t.text(px, py, "⚓", open ? c.theme.accent : C.dim);
+      t.text(px + 2, py, c.name, open ? c.theme.accent : C.dim);
+      t.text(
+        px + 24,
+        py++,
+        open
+          ? `${done} of ${all.length} beaten${g.heatIn("belle") ? `, heat ${g.heatIn("belle")}` : ""}`
+          : "at the pier - locked",
+        done === all.length ? C.green : C.gray,
+      );
     }
     t.text(5, ROWS - 3, "↑↓ look at pockets   Esc close", C.dim);
   }

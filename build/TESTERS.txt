@@ -1,9 +1,26 @@
-ACE AVENUE 0.2 - EARLY TEST BUILD (please read me)
+ACE AVENUE 0.3 - EARLY TEST BUILD (please read me)
 =================================================
 
 Thanks for testing Ace Avenue! It's an ASCII casino roguelike. You arrive on Ace Avenue with
 a few hundred dollars. Beat the high rollers of five casinos, win each boss's golden chip, and
 take on the Baron at the top of the Pinnacle.
+
+
+NEW IN 0.3 - "RIVERBOAT"
+------------------------
+- The Magnolia Belle, a paddle-wheel riverboat, ties up at the pier at the far east end
+  of the Avenue. Show the deckhand the Coral Grotto's golden chip to board.
+- A new duel game, LIAR'S DICE. Five dice each under a cup, ones are wild. Bid how many of
+  a face are on the whole table, or call "Liar!". Whoever's wrong loses a die; the last
+  one with dice takes the pot. Press ? in the game for the full rules.
+- Four new characters aboard: Zeke the stoker, Madame Delphine the fortune teller,
+  Pettibone the insurance man, and Captain Thibodeaux, who has never lost at the cups.
+  The Captain knows a secret about the Baron.
+- Chuck-a-luck, the old riverboat dice game: three dice in a spinning birdcage.
+- New things to win: loaded dice, a tarot card that peeks under their cup, an insurance
+  policy that softens a lost duel, and the Captain's spyglass.
+- Poker Read and Poker Face work at liar's dice too; Card Sense shows the odds of a bid.
+- Your 0.2 save carries over.
 
 
 NEW IN 0.2 - "LUCKY STREAK"
@@ -40,7 +57,7 @@ THE BASICS
 - High rollers stand by their private tables. Challenge them to blackjack or five-card draw;
   you both put up their stake and play until one of you is broke.
 - Beat all three on a floor to open the VIP room and face the boss.
-- House games (blackjack, slots, roulette, craps) build your bankroll between duels.
+- House games (blackjack, slots, roulette, craps and more) build your bankroll between duels.
 - Winning too much raises HEAT. At 100 heat security walks you out.
 - Go broke with nothing to pawn and an unpaid loan, and the run is over.
 

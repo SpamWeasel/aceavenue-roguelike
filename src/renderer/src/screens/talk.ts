@@ -1,7 +1,7 @@
 import { rulesText } from "../../../game/blackjack";
 import { type Card, cardName } from "../../../game/cards";
 import { C } from "../../../game/colors";
-import type { RollerDef } from "../../../game/data/casinos";
+import { GAME_NAME, type RollerDef } from "../../../game/data/casinos";
 import { DRINK_ORDER, DRINKS } from "../../../game/data/items";
 import { type Game, money } from "../../../game/game";
 import { limitsFor } from "../../../game/poker";
@@ -10,6 +10,7 @@ import type { App, Screen } from "../app";
 import { isBack, isConfirm } from "../input";
 import { COLS, type Term } from "../term";
 import { BlackjackScreen } from "./blackjack";
+import { DiceScreen } from "./dice";
 import { drawCard, drawPortrait, wrapLines } from "./draw";
 import type { PlayScreen } from "./play";
 import { PokerScreen } from "./poker";
@@ -68,7 +69,7 @@ export class RollerScreen implements Screen {
       ];
     return [
       {
-        label: `Play ${r.game === "poker" ? "five-card draw" : "blackjack"} for ${money(r.stake)}`,
+        label: `Play ${GAME_NAME[r.game]} for ${money(r.stake)}`,
         on: g.s.cash >= r.stake,
         act: () => this.sit(),
       },
@@ -88,6 +89,8 @@ export class RollerScreen implements Screen {
     if (r.game === "blackjack" && r.rules) {
       const min = Math.max(1, Math.round(r.stake / 20));
       this.line = `Blackjack, ${r.short} deals. ${rulesText(r.rules)}. Bets ${money(min)} to ${money(Math.round(r.stake / 4))}. Take all ${money(r.stake)} of their stack to win.`;
+    } else if (r.game === "dice") {
+      this.line = `Liar's dice, heads up. Five dice each under a cup; ones are wild. Bid how many of a face are on the whole table, or call "Liar!". Whoever's wrong loses a die. The last one with dice takes all ${money(r.stake * 2)}. Walk away early and each die you have left is worth ${money(r.stake / 5)}.`;
     } else {
       const l = limitsFor(r.stake);
       this.line = `Five-card draw, heads up. Ante ${money(l.ante)}. Bets are ${money(l.small)} before the draw and ${money(l.big)} after. Draw up to three cards (four if you keep an ace). Take their whole stack to win.`;
@@ -106,6 +109,7 @@ export class RollerScreen implements Screen {
     }
     this.app.pop();
     if (this.r.game === "poker") this.app.push(new PokerScreen(this.app, this.play, this.r));
+    else if (this.r.game === "dice") this.app.push(new DiceScreen(this.app, this.play, this.r));
     else this.app.push(new BlackjackScreen(this.app, this.play, null, this.r));
   }
 
@@ -148,9 +152,7 @@ export class RollerScreen implements Screen {
     t.text(
       tx,
       y + 4,
-      g.beaten(r.id)
-        ? "Cleaned out."
-        : `Plays ${r.game === "poker" ? "five-card draw" : "blackjack"} - stake ${money(r.stake)}`,
+      g.beaten(r.id) ? "Cleaned out." : `Plays ${GAME_NAME[r.game]} - stake ${money(r.stake)}`,
       g.beaten(r.id) ? C.green : C.light,
     );
     if (r.tells && g.knowsTell(r.id)) t.text(tx, y + 5, "You've heard about their tell.", C.cyan);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { bacReturn, bacTotal, bankerDraws, dealCoup } from "../src/game/baccarat";
 import { type Card, Shoe } from "../src/game/cards";
 import { CASINO_ORDER, CASINOS, RIVAL } from "../src/game/data/casinos";
-import { Game, niceRound } from "../src/game/game";
+import { Game, niceRound, SAVE_VERSION } from "../src/game/game";
 import { Rng } from "../src/game/rng";
 import { VideoPokerHand, VP_TABLES, vpHint, vpPays, vpRank } from "../src/game/videopoker";
 import { buildCasino, reachable } from "../src/game/world";
@@ -114,7 +114,7 @@ describe("0.2 floors and rules", () => {
     const back = Game.load(JSON.stringify(old));
     expect(back.s.comps).toBe(0);
     expect(back.s.rival.wins).toBe(0);
-    expect(back.s.version).toBe(2);
+    expect(back.s.version).toBe(SAVE_VERSION);
   });
 
   it("earns and spends comp points", () => {

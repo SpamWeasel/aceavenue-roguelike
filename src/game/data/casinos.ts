@@ -4,8 +4,21 @@ import type { PokerPersona, TellKind } from "../poker";
 import type { VpTableId } from "../videopoker";
 import type { ItemId } from "./items";
 
-export type HouseGame = "blackjack" | "slots" | "roulette" | "craps" | "video" | "baccarat";
-export type CasinoId = "rustyspur" | "coralgrotto" | "starlight" | "velvetfox" | "pinnacle";
+export type HouseGame =
+  | "blackjack"
+  | "slots"
+  | "roulette"
+  | "craps"
+  | "video"
+  | "baccarat"
+  | "chuck";
+export type CasinoId =
+  | "rustyspur"
+  | "coralgrotto"
+  | "starlight"
+  | "velvetfox"
+  | "pinnacle"
+  | "belle";
 export const CASINO_ORDER: CasinoId[] = [
   "rustyspur",
   "coralgrotto",
@@ -13,6 +26,8 @@ export const CASINO_ORDER: CasinoId[] = [
   "velvetfox",
   "pinnacle",
 ];
+/** Every casino: the five on the way to the Baron, then the riverboat at the pier (0.3). */
+export const ALL_CASINOS: CasinoId[] = [...CASINO_ORDER, "belle"];
 
 /** Parts of a portrait (see screens/portrait.ts). */
 export type HatKind =
@@ -51,7 +66,7 @@ export interface RollerDef {
   title: string;
   glyph: string;
   color: string;
-  game: "poker" | "blackjack";
+  game: "poker" | "blackjack" | "dice";
   stake: number;
   persona?: PokerPersona;
   rules?: BjRules;
@@ -71,11 +86,23 @@ export interface RollerDef {
   victory: string;
   /** Said when you talk to them after beating them. */
   after: string;
-  /** Poker only: what they do with strong, weak and so-so hands. */
+  /** Poker and dice: what they do with strong, weak and so-so hands. */
   tells?: Record<TellKind, string[]>;
   /** Gossip that gives away their weak tell. */
   tellTip?: string;
 }
+
+/** What each duel game is called, in full and on the side panel. */
+export const GAME_NAME: Record<RollerDef["game"], string> = {
+  poker: "five-card draw",
+  blackjack: "blackjack",
+  dice: "liar's dice",
+};
+export const GAME_SHORT: Record<RollerDef["game"], string> = {
+  poker: "poker",
+  blackjack: "21",
+  dice: "dice",
+};
 
 export interface CasinoTheme {
   wall: string;
@@ -98,6 +125,9 @@ export interface CasinoDef {
   roulette?: { min: number; max: number; doubleZero: boolean };
   craps?: { min: number; max: number };
   baccarat?: { min: number; max: number };
+  chuck?: { min: number; max: number };
+  /** Off the road to the Baron: no golden chip; its boss gives something else (the riverboat). */
+  side?: boolean;
   /** Video poker: coin size and the pay tables its machines can have (picked at random). */
   video: { coin: number; tables: VpTableId[] };
   slotCoin: number;
@@ -988,9 +1018,203 @@ export const CASINOS: Record<CasinoId, CasinoDef> = {
       tellTip: "Even the Baron has a tell: he adjusts his cravat when the cards turn on him.",
     },
   },
+  belle: {
+    id: "belle",
+    name: "The Magnolia Belle",
+    tier: 3,
+    side: true,
+    blurb: "A paddle-wheel riverboat tied up at the pier. Dice, cards and river fog.",
+    welcome: "The deck rocks gently. A calliope wheezes somewhere above, and dice rattle in cups.",
+    theme: {
+      wall: "#5a1e16",
+      wallFg: C.gold,
+      carpet: ["#3a2614", "#402a16"],
+      carpetFg: "#5a3c20",
+      felt: "#1f4a2a",
+      accent: C.gold,
+      sign: C.paper,
+    },
+    games: ["blackjack", "slots", "video", "roulette", "chuck"],
+    bj: { min: 25, max: 1000, rules: [shoe6h, double2, sixFive] },
+    roulette: { min: 10, max: 1000, doubleZero: true },
+    chuck: { min: 10, max: 1000 },
+    video: { coin: 10, tables: ["8/5", "7/5", "9/6", "6/5"] },
+    slotCoin: 10,
+    looseChance: 0.14,
+    biasChance: 0.5,
+    rollers: [
+      {
+        id: "zeke",
+        name: 'Zeke "Coal Bin" Tully',
+        short: "Zeke",
+        title: "the boiler-room stoker",
+        glyph: "Z",
+        color: C.orange,
+        game: "dice",
+        stake: 3000,
+        persona: { tight: 0.25, aggro: 0.6, bluff: 0.45, face: 0.15 },
+        look: {
+          hat: "bald",
+          eyes: "o o",
+          mouth: "▽",
+          chin: "beard",
+          body: "vest",
+          hatColor: C.tan,
+          skin: C.tan,
+          clothes: C.concrete,
+        },
+        reward: "loadeddice",
+        greet:
+          "Hoo! Fresh face up from the Avenue! You smell like soap. Nobody down here smells like soap.",
+        chat: [
+          "I shovel coal twelve hours a day. Liar's dice is how I cool off.",
+          "Ones are wild, friend. Everybody forgets the ones.",
+          "The Cap'n never lost a game of dice in forty years. Not one.",
+        ],
+        challenge: "Cups up! Five dice apiece. Last one rattlin' takes the pot!",
+        winHand: ["HA! Hot coals!", "Shoulda believed me!"],
+        loseHand: ["Aw, cinders.", "Ya got me square."],
+        beaten:
+          "Burned clean out! Here - my old dice. They're, uh, a little heavy on the six side. Don't tell the Cap'n.",
+        victory: "Back up the ladder with ya, soap-smell!",
+        after: "Them dice treatin' you right? Not too right, I hope.",
+        tells: {
+          strong: ["thumps the table and grins", "wipes soot off his cup proudly"],
+          weak: ["tugs at his beard", "laughs too loud"],
+          neutral: ["cracks his knuckles", "spits over the rail"],
+        },
+        tellTip: "Zeke tugs his beard when he's bluffing. Whole crew knows it but him.",
+      },
+      {
+        id: "delphine",
+        name: "Madame Delphine",
+        short: "Delphine",
+        title: "the fortune teller",
+        glyph: "D",
+        color: C.purple,
+        game: "dice",
+        stake: 4000,
+        persona: { tight: 0.5, aggro: 0.35, bluff: 0.25, face: 0.6 },
+        look: {
+          hat: "longhair",
+          eyes: "◦ ◦",
+          mouth: "─",
+          chin: "plain",
+          body: "dress",
+          hatColor: C.darkRed,
+          skin: C.paper,
+          clothes: C.violet,
+        },
+        reward: "tarot",
+        greet: "Ah. I saw you coming three days ago. You were taller in the vision.",
+        chat: [
+          "The dice do not lie, cheri. Only the people shaking them.",
+          "I read palms, cards and bones. Dice are only bones with numbers on.",
+          "Pettibone thinks fortune telling is nonsense. That is why he keeps losing.",
+        ],
+        challenge: "Shake the bones. Let us see what the river has to say.",
+        winHand: ["As foretold.", "The spirits were quite clear."],
+        loseHand: ["Hm. A cloudy reading.", "The spirits are mischievous tonight."],
+        beaten:
+          "The cards warned me about you. Take this one - the Fool. It will show you what is hidden.",
+        victory: "I saw this too. I did not want to say.",
+        after: "Your fortune is improving. Mine, less so.",
+        tells: {
+          strong: ["closes her eyes and smiles", "lays a tarot card face up"],
+          weak: ["fiddles with her bangles", "glances out at the river"],
+          neutral: ["shuffles her tarot deck", "lights a stick of incense"],
+        },
+        tellTip: "Madame Delphine fiddles with her bangles when the spirits fail her.",
+      },
+      {
+        id: "pettibone",
+        name: "Augustus Pettibone",
+        short: "Pettibone",
+        title: "the insurance man",
+        glyph: "P",
+        color: C.paper,
+        game: "poker",
+        stake: 5000,
+        persona: { tight: 0.35, aggro: 0.45, bluff: 0.22, face: 0.55 },
+        look: {
+          hat: "fedora",
+          eyes: "■-■",
+          mouth: "─",
+          chin: "stache",
+          body: "suit",
+          hatColor: C.paper,
+          skin: C.pink,
+          clothes: C.paper,
+        },
+        reward: "policy",
+        greet:
+          "Pettibone, Surety and Indemnity. Have you considered what happens if you lose everything?",
+        chat: [
+          "I insure riverboats. Every one of them sinks eventually. Premiums, my friend.",
+          "I calculate the odds of every hand. I am rarely surprised.",
+          "Madame Delphine says I'll die rich. I intend to make it so.",
+        ],
+        challenge: "Five-card draw. Shall we say the terms are agreeable?",
+        winHand: ["Actuarially inevitable.", "The tables never lie."],
+        loseHand: ["An outlier.", "Statistically noted."],
+        beaten:
+          "Wiped out. Here - a paid-up policy. If a high roller ever cleans you out, it pays back half your stake.",
+        victory: "A shame you weren't insured.",
+        after: "Your policy is in good order. Do read the fine print.",
+        tells: {
+          strong: ["polishes his spectacles", "makes a neat note in his ledger"],
+          weak: ["checks his pocket watch", "dabs his brow with a handkerchief"],
+          neutral: ["straightens his cuffs", "sips a lemonade"],
+        },
+        tellTip: "Pettibone checks his watch when the odds go against him. Regular as clockwork.",
+      },
+    ],
+    boss: {
+      id: "thibodeaux",
+      name: "Captain Silas Thibodeaux",
+      short: "the Captain",
+      title: "master of the Magnolia Belle",
+      glyph: "S",
+      color: C.gold,
+      game: "dice",
+      stake: 10000,
+      boss: true,
+      persona: { tight: 0.45, aggro: 0.25, bluff: 0.2, face: 0.85 },
+      look: {
+        hat: "captain",
+        eyes: "o -",
+        mouth: "═",
+        chin: "beard",
+        body: "coat",
+        hatColor: C.white,
+        skin: C.tan,
+        clothes: C.navy,
+      },
+      reward: "spyglass",
+      greet: "Welcome aboard my Belle. Forty years on the river, and nobody's beat me at the cups.",
+      chat: [
+        "I won this boat off a young fellow in a silk cravat, long ago. He calls himself the Baron now.",
+        "Knew a Calloway once. Best riverboat gambler I ever saw. Couldn't swim a stroke.",
+        "Beat me and I'll tell you how I beat the Baron. It's worth more than money.",
+      ],
+      challenge: "Liar's dice, the river way. Ones are wild and so am I.",
+      winHand: ["Steady as she goes.", "The river provides."],
+      loseHand: ["Ha! Well called.", "Fog on the water."],
+      beaten:
+        "Forty years! Well, well. A promise is a promise: when the Baron's beat, he fusses with his cravat. Take my spyglass too.",
+      victory: "The river always wins, young one.",
+      after: "Remember the cravat. And give the Baron my regards.",
+      tells: {
+        strong: ["puffs his pipe slowly", "rings the little brass bell"],
+        weak: ["squints out at the river", "taps his pipe on the rail"],
+        neutral: ["checks the wheelhouse window", "hums a shanty"],
+      },
+      tellTip: "The Captain taps his pipe when the dice turn on him. Takes a sharp eye.",
+    },
+  },
 };
 
-export const ALL_ROLLERS: RollerDef[] = CASINO_ORDER.flatMap((id) => [
+export const ALL_ROLLERS: RollerDef[] = ALL_CASINOS.flatMap((id) => [
   ...CASINOS[id].rollers,
   CASINOS[id].boss,
 ]);
@@ -1001,7 +1225,7 @@ export const ROLLER_BY_ID: Record<string, RollerDef> = Object.fromEntries(
 
 /** Which casino a high roller plays in. */
 export const ROLLER_CASINO: Record<string, CasinoId> = Object.fromEntries(
-  CASINO_ORDER.flatMap((id) => [...CASINOS[id].rollers, CASINOS[id].boss].map((r) => [r.id, id])),
+  ALL_CASINOS.flatMap((id) => [...CASINOS[id].rollers, CASINOS[id].boss].map((r) => [r.id, id])),
 );
 
 /**

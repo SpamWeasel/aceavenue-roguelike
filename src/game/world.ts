@@ -1,6 +1,6 @@
 import type { BjRules } from "./blackjack";
 import { C } from "./colors";
-import { CASINO_ORDER, CASINOS, type CasinoDef, type CasinoId } from "./data/casinos";
+import { ALL_CASINOS, CASINOS, type CasinoDef, type CasinoId } from "./data/casinos";
 import { SHOPS, type ShopId } from "./data/shops";
 import { hashSeed, Rng } from "./rng";
 import { makeWheel, type WheelDef } from "./roulette";
@@ -31,6 +31,7 @@ export const T = {
   lobby: 19,
   shelf: 20,
   video: 21,
+  water: 22,
 } as const;
 export type Tile = (typeof T)[keyof typeof T];
 
@@ -48,7 +49,7 @@ export const walkable = (t: number) => WALKABLE.has(t);
 export const MAP_W = 74;
 export const MAP_H = 24;
 
-export type TableKind = "blackjack" | "roulette" | "craps" | "baccarat" | "duel";
+export type TableKind = "blackjack" | "roulette" | "craps" | "baccarat" | "chuck" | "duel";
 
 export interface TableDef {
   id: string;
@@ -292,6 +293,12 @@ export function buildStrip(): Area {
     if (!a.doors.some((d) => Math.abs(d.x - x) <= 1)) setTile(a, x, 7, T.palm);
     if (!a.doors.some((d) => Math.abs(d.x - x - 3) <= 1)) setTile(a, x + 3, 16, T.lamp);
   }
+  // The pier at the east end, where the riverboat ties up (0.3).
+  for (let y = 9; y < 17; y++) setTile(a, MAP_W - 1, y, T.water);
+  setTile(a, MAP_W - 1, 8, T.door, "belle");
+  a.doors.push({ x: MAP_W - 1, y: 8, target: "belle", outX: MAP_W - 2, outY: 8 });
+  a.signs.push({ x: MAP_W - 16, y: 10, text: "RIVERBOAT PIER", fg: C.gray });
+  a.signs.push({ x: MAP_W - 16, y: 11, text: "MAGNOLIA BELLE", fg: CASINOS.belle.theme.accent });
   a.signs.push({ x: 2, y: 10, text: "WELCOME TO", fg: C.gray });
   a.signs.push({ x: 2, y: 11, text: "ACE AVENUE", fg: C.yellow });
   a.entry = { x: 3, y: 8 };
@@ -320,6 +327,7 @@ type Station =
   | "roulette"
   | "craps"
   | "baccarat"
+  | "chuck"
   | "slots"
   | "video"
   | "duel"
@@ -328,7 +336,7 @@ type Station =
 
 /** Lays out one casino. The layout is fixed for the whole game (same seed, same floor). */
 export function buildCasino(casino: CasinoDef, gameSeed: number): Area {
-  const rng = new Rng(hashSeed(gameSeed, CASINO_ORDER.indexOf(casino.id) + 1, 777));
+  const rng = new Rng(hashSeed(gameSeed, ALL_CASINOS.indexOf(casino.id) + 1, 777));
   const a = blankArea(casino.id, casino.name, "casino", T.floor);
   a.casino = casino;
   // Outer walls.
@@ -397,6 +405,7 @@ export function buildCasino(casino: CasinoDef, gameSeed: number): Area {
   for (let i = rng.int(2, 3); i > 0; i--) stations.push("slots");
   stations.push("video");
   if (casino.baccarat) stations.push("baccarat");
+  if (casino.chuck) stations.push("chuck", "chuck");
   for (let i = 0; i < casino.rollers.length; i++) stations.push("duel");
   while (stations.length < GRID_COLS * GRID_ROWS)
     stations.push(rng.chance(0.4) ? "decor" : "empty");
@@ -407,6 +416,7 @@ export function buildCasino(casino: CasinoDef, gameSeed: number): Area {
   let duelN = 0;
   let bankN = 0;
   let videoN = 0;
+  let chuckN = 0;
   stations.forEach((kind, i) => {
     const cx = GRID_X0 + (i % GRID_COLS) * CELL_W;
     const cy = GRID_Y0 + Math.floor(i / GRID_COLS) * CELL_H;
@@ -520,6 +530,23 @@ export function buildCasino(casino: CasinoDef, gameSeed: number): Area {
           max: b.max,
           region,
           label: "Baccarat",
+        });
+        break;
+      }
+      case "chuck": {
+        const ch = casino.chuck as NonNullable<CasinoDef["chuck"]>;
+        rect(a, x, y, 4, 2, T.felt);
+        a.tables.push({
+          id: `chuck${chuckN}`,
+          kind: "chuck",
+          x,
+          y,
+          w: 4,
+          h: 2,
+          min: ch.min,
+          max: ch.max,
+          region,
+          label: `Chuck-a-luck ${++chuckN}`,
         });
         break;
       }

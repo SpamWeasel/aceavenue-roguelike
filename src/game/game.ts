@@ -57,7 +57,7 @@ import {
   walkable,
 } from "./world";
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const POCKET_SIZE = 8;
 
 export type Difficulty = "easy" | "normal" | "hard";
@@ -128,7 +128,7 @@ export interface State {
   knownTells: string[];
   visits: Record<string, number>;
   /** A duel in progress: the money you have on that table. */
-  duel: { rollerId: string; stack: number } | null;
+  duel: { rollerId: string; stack: number; stake?: number } | null;
   /** Players' Club points from house play (0.2). */
   comps: number;
   /** Your rival Dutch (0.2): duels won and lost, and when you last met. */
@@ -485,7 +485,8 @@ export class Game {
         },
         place(floor),
       );
-    if (this.canMeetRival() && rng.chance(RIVAL_CHANCE)) {
+    // Dutch never sets foot on the riverboat: he gets seasick.
+    if (!a.casino?.side && this.canMeetRival() && rng.chance(RIVAL_CHANCE)) {
       add(
         {
           kind: "rival",
@@ -559,7 +560,9 @@ export class Game {
       if (!this.s.chips.includes(need.id))
         return {
           ok: false,
-          why: `The doorman blocks the way. "Members only. Come back with ${need.name}'s golden chip."`,
+          why: c.side
+            ? `A deckhand blocks the gangplank. "Cap'n only lets high rollers aboard. Show me ${need.name}'s golden chip."`
+            : `The doorman blocks the way. "Members only. Come back with ${need.name}'s golden chip."`,
         };
     }
     if (this.s.banned[id]) {
@@ -1058,7 +1061,7 @@ export class Game {
     if (this.s.cash < r.stake)
       return `You need ${money(r.stake)} to sit down with ${r.short}. You have ${money(this.s.cash)}.`;
     this.pay(r.stake);
-    this.s.duel = { rollerId: r.id, stack: r.stake };
+    this.s.duel = { rollerId: r.id, stack: r.stake, stake: r.stake };
     this.log(`You sit down with ${r.name} for ${money(r.stake)} each.`, r.color);
     this.sound("shuffle");
     return null;
@@ -1076,7 +1079,7 @@ export class Game {
     const r = rollerById(d.rollerId);
     this.s.duel = null;
     if (r.id === RIVAL.id) {
-      this.endRivalDuel(result, stack);
+      this.endRivalDuel(result, stack, d.stake ?? r.stake, !!note);
       return;
     }
     this.receive(stack);
@@ -1093,7 +1096,14 @@ export class Game {
           C.green,
         );
       }
-      if (r.boss) {
+      if (r.boss && CASINOS[ROLLER_CASINO[r.id]].side) {
+        // The riverboat captain has no golden chip. He gives you the Baron's tell instead.
+        if (!this.s.knownTells.includes("baron")) this.s.knownTells.push("baron");
+        this.log(
+          "The Captain tells you how he beat the Baron: he fusses with his cravat when he's in trouble.",
+          C.gold,
+        );
+      } else if (r.boss) {
         const cid = ROLLER_CASINO[r.id];
         if (!this.s.chips.includes(cid)) this.s.chips.push(cid);
         if (r.id === "baron") {
@@ -1111,6 +1121,7 @@ export class Game {
       this.s.stats.duelsLost++;
       this.log(note ?? `${r.name} cleans you out.`, C.red);
       this.sound("lose");
+      if (!note) this.claimPolicy(d.stake ?? r.stake);
       this.checkBroke();
     } else {
       this.log(`You get up from ${r.short}'s table with ${money(stack)}.`, C.gray);
@@ -1147,7 +1158,23 @@ export class Game {
     };
   }
 
-  private endRivalDuel(result: "won" | "lost" | "left", stack: number): void {
+  /** The Insurance Policy pays back half the stake when a high roller cleans you out. */
+  private claimPolicy(stake: number): void {
+    if (!this.useItem("policy")) return;
+    const back = Math.round(stake / 2);
+    this.receive(back);
+    this.log(
+      `Your Insurance Policy pays out ${money(back)}. Pettibone would be proud. (It's used up.)`,
+      C.lime,
+    );
+  }
+
+  private endRivalDuel(
+    result: "won" | "lost" | "left",
+    stack: number,
+    stake: number,
+    cheated: boolean,
+  ): void {
     const rv = this.s.rival;
     this.receive(stack);
     this.tick(10);
@@ -1172,6 +1199,7 @@ export class Game {
       rv.losses++;
       this.log("Dutch rakes in your money with a grin and strolls off.", C.red);
       this.sound("lose");
+      if (!cheated) this.claimPolicy(stake);
       this.checkBroke();
     } else {
       this.log(

@@ -194,3 +194,62 @@ export function wrapLines(text: string, w: number): string[] {
   }
   return out;
 }
+
+const PIPS: Record<number, [number, number][]> = {
+  1: [[1, 1]],
+  2: [
+    [0, 0],
+    [2, 2],
+  ],
+  3: [
+    [0, 0],
+    [1, 1],
+    [2, 2],
+  ],
+  4: [
+    [0, 0],
+    [2, 0],
+    [0, 2],
+    [2, 2],
+  ],
+  5: [
+    [0, 0],
+    [2, 0],
+    [1, 1],
+    [0, 2],
+    [2, 2],
+  ],
+  6: [
+    [0, 0],
+    [2, 0],
+    [0, 1],
+    [2, 1],
+    [0, 2],
+    [2, 2],
+  ],
+};
+
+export const DIE_W = 9;
+export const DIE_H = 5;
+
+/**
+ * A die, 9x5. Pass null for one still under the cup. `hot` picks out a die that counts toward
+ * the bid; `dim` greys out one that doesn't.
+ */
+export function drawDie(
+  t: Term,
+  x: number,
+  y: number,
+  n: number | null,
+  opts: { hot?: boolean; dim?: boolean } = {},
+): void {
+  if (n === null) {
+    t.fill(x, y, DIE_W, DIE_H, "░", C.dim, C.ink);
+    t.put(x + 4, y + 2, "?", C.gray, C.ink);
+    return;
+  }
+  const bg = opts.hot ? C.yellow : opts.dim ? C.gray : C.paper;
+  t.fill(x, y, DIE_W, DIE_H, " ", C.black, bg);
+  for (const [cx, cy] of PIPS[n])
+    t.put(x + 2 + cx * 2, y + 1 + cy, "●", n === 1 ? C.red : C.black, bg);
+}

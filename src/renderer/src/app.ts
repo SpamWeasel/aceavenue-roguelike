@@ -40,6 +40,8 @@ export class App {
   readonly term = new Term();
   private stack: Screen[] = [];
   private dirty = true;
+  /** Whether the top screen was animating last frame: it gets one more redraw when it stops. */
+  private wasAnimating = false;
   private pad = new GamepadInput();
   game: Game | null = null;
   /** Which save slot the current game lives in. */
@@ -112,7 +114,12 @@ export class App {
         for (const s of g.sounds) play(s);
         g.sounds = [];
       }
-      if (top && (this.dirty || top.animating?.(now))) {
+      // Always ask: animating() also runs timers (an opponent's move), and the frame where it
+      // stops still needs drawing, or the screen sits on "thinking..." until a key is pressed.
+      const anim = !!top?.animating?.(now);
+      const redraw = this.dirty || anim || this.wasAnimating;
+      this.wasAnimating = anim;
+      if (top && redraw) {
         this.dirty = false;
         this.term.clear();
         // Draw from the last full-screen screen up, so pop-ups sit over what's beneath.

@@ -1,6 +1,13 @@
 import { rulesText } from "../../../game/blackjack";
 import { C } from "../../../game/colors";
-import { CASINO_ORDER, CASINOS, ROLLER_BY_ID } from "../../../game/data/casinos";
+import {
+  ALL_CASINOS,
+  CASINO_ORDER,
+  CASINOS,
+  GAME_NAME,
+  GAME_SHORT,
+  ROLLER_BY_ID,
+} from "../../../game/data/casinos";
 import { DRINKS, ITEMS, SKILL_ORDER, SKILLS } from "../../../game/data/items";
 import { SHOPS, type ShopId } from "../../../game/data/shops";
 import { type Game, HEAT_MAX, type Interaction, money } from "../../../game/game";
@@ -10,6 +17,7 @@ import { ACTION_DIR, actionFor } from "../settings";
 import { COLS, ROWS, type Term } from "../term";
 import { BaccaratScreen } from "./baccarat";
 import { BlackjackScreen } from "./blackjack";
+import { ChuckScreen } from "./chuck";
 import { ClubScreen } from "./club";
 import { CrapsScreen } from "./craps";
 import { meter, wrapLines } from "./draw";
@@ -106,6 +114,7 @@ export class PlayScreen implements Screen {
         else if (it.table.kind === "roulette") app.push(new RouletteScreen(app, this, it.table));
         else if (it.table.kind === "craps") app.push(new CrapsScreen(app, this, it.table));
         else if (it.table.kind === "baccarat") app.push(new BaccaratScreen(app, this, it.table));
+        else if (it.table.kind === "chuck") app.push(new ChuckScreen(app, this, it.table));
         break;
       case "video":
         app.push(new VideoPokerScreen(app, this, it.spot));
@@ -188,6 +197,11 @@ export class PlayScreen implements Screen {
                     : lx === 2 || lx === 3
                       ? C.gold
                       : C.paper;
+              } else if (table.kind === "chuck") {
+                // The birdcage on its stand, and the layout of numbers.
+                ch = ly === 0 ? (lx === 1 || lx === 2 ? "▒" : "~") : "•";
+                fg =
+                  ly === 0 ? (lx === 1 || lx === 2 ? C.gold : C.paper) : lx % 2 ? C.red : C.paper;
               } else if (table.kind === "duel") {
                 ch = "♠♥♦♣"[(lx + ly) % 4];
                 fg = (lx + ly) % 4 === 1 || (lx + ly) % 4 === 2 ? C.red : C.black;
@@ -200,6 +214,11 @@ export class PlayScreen implements Screen {
             bg = c ? c.theme.felt : C.felt;
             ch = "◎";
             fg = (blink + y) % 2 ? C.gold : C.amber;
+            break;
+          case T.water:
+            bg = C.navy;
+            ch = (x + y + Math.floor(now / 600)) % 3 === 0 ? "≈" : "~";
+            fg = C.blue;
             break;
           case T.video:
             bg = "#0c1a3a";
@@ -334,7 +353,7 @@ export class PlayScreen implements Screen {
     if (table) {
       if (table.kind === "duel" && table.rollerId) {
         const r = ROLLER_BY_ID[table.rollerId];
-        return `${r.name}'s private table (${r.game}, ${money(r.stake)} stake).`;
+        return `${r.name}'s private table (${GAME_NAME[r.game]}, ${money(r.stake)} stake).`;
       }
       const limits = `${money(table.min)}-${money(table.max)}`;
       if (table.kind === "blackjack" && table.rules)
@@ -342,6 +361,8 @@ export class PlayScreen implements Screen {
       if (table.kind === "roulette")
         return `${table.label}: ${limits}. ${table.wheel?.doubleZero ? "Double zero" : "Single zero"} wheel.`;
       if (table.kind === "baccarat") return `Baccarat: ${limits}. Bet Player, Banker or Tie.`;
+      if (table.kind === "chuck")
+        return `${table.label}: ${limits} a spot. Three dice in a birdcage; bet a number, High, Low or Any Triple.`;
       return `Craps: ${limits}.`;
     }
     const v = a.videos.find((vs) => vs.x === x && vs.y === y);
@@ -379,6 +400,7 @@ export class PlayScreen implements Screen {
       [T.palm]: "A palm tree.",
       [T.lamp]: "A street lamp.",
       [T.shelf]: "Bottles behind the bar.",
+      [T.water]: "The river, slow and brown.",
     };
     return names[tile] ?? "";
   }
@@ -413,12 +435,12 @@ export class PlayScreen implements Screen {
         const mark = done ? "✓" : r.boss ? "★" : "·";
         t.put(x, y, mark, done ? C.green : r.boss ? C.gold : C.gray);
         t.text(x + 2, y, r.short, done ? C.gray : r.color, undefined, x + 16);
-        t.text(x + 17, y, r.game === "poker" ? "poker" : "21", C.dim);
+        t.text(x + 17, y, GAME_SHORT[r.game], C.dim);
         t.text(x + 23, y++, money(r.stake), done ? C.dim : s.cash >= r.stake ? C.lime : C.gray);
       }
     } else {
       t.text(x, y++, "Ace Avenue", C.yellow);
-      const hot = CASINO_ORDER.filter((id) => g.heatIn(id) > 0);
+      const hot = ALL_CASINOS.filter((id) => g.heatIn(id) > 0);
       if (hot.length) {
         for (const id of hot.slice(0, 3)) {
           t.text(x, y, CASINOS[id].name.replace("The ", "").slice(0, 13), C.gray);
@@ -505,7 +527,7 @@ export function describeNpc(g: Game, n: Npc): string {
   switch (n.kind) {
     case "roller": {
       const r = ROLLER_BY_ID[n.rollerId ?? ""];
-      return `${r.name}, ${r.title}. ${g.beaten(r.id) ? "Beaten." : `Plays ${r.game} for ${money(r.stake)}.`}`;
+      return `${r.name}, ${r.title}. ${g.beaten(r.id) ? "Beaten." : `Plays ${GAME_NAME[r.game]} for ${money(r.stake)}.`}`;
     }
     case "patron":
       return n.tip ? "A gambler who looks like they know something." : "A gambler.";

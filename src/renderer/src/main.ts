@@ -3,8 +3,10 @@ import { Game } from "../../game/game";
 import { App } from "./app";
 import { BaccaratScreen } from "./screens/baccarat";
 import { BlackjackScreen } from "./screens/blackjack";
+import { ChuckScreen } from "./screens/chuck";
 import { ClubScreen } from "./screens/club";
 import { CrapsScreen } from "./screens/craps";
+import { DiceScreen } from "./screens/dice";
 import { EndScreen, HelpScreen, SheetScreen, startGame, TitleScreen } from "./screens/menus";
 import { PokerScreen } from "./screens/poker";
 import { RouletteScreen } from "./screens/roulette";
@@ -140,6 +142,41 @@ async function smoke(app: App, scene: string): Promise<void> {
         for (let i = 0; i < 14; i++) h.push(1 + (i % 3 === 2 ? 1 : 0) + (i === 9 ? 1 : 0));
         app.push(new BaccaratScreen(app, play, table));
         for (const code of ["ArrowDown", "Enter", "Enter"]) press(code);
+      } else if (scene === "pier") {
+        g.s.chips.push("rustyspur", "coralgrotto");
+        // Stand by the gangplank and step aboard.
+        g.s.x = 72;
+        g.s.y = 8;
+        g.area.npcs = g.area.npcs.filter((n) => n.x !== 73 || n.y !== 8);
+        g.move(1, 0);
+        if (g.area.id !== "belle") errors.push(`the pier door didn't lead aboard (${g.area.id})`);
+        g.s.y -= 2;
+      } else if (scene === "dice") {
+        g.s.chips.push("rustyspur", "coralgrotto");
+        g.s.cash = 6000;
+        g.s.skills.read = 1;
+        g.s.skills.cards = 1;
+        g.s.pockets.push("tarot", "loadeddice");
+        casino("belle");
+        const r = ROLLER_BY_ID.zeke;
+        if (g.startDuel(r)) throw new Error("could not start a dice duel");
+        app.push(new DiceScreen(app, play, r));
+        press("Enter");
+        await frames(90);
+        // Bid if it's your turn, then give Zeke time to answer.
+        for (const code of ["ArrowUp", "Enter"]) press(code);
+        await frames(180);
+        if (g.s.duel?.rollerId !== "zeke") errors.push("the dice duel ended early");
+      } else if (scene === "chuck") {
+        g.s.chips.push("rustyspur", "coralgrotto");
+        g.s.cash = 3000;
+        casino("belle");
+        const table = g.area.tables.find((t) => t.kind === "chuck");
+        if (!table) throw new Error("no chuck-a-luck table");
+        app.push(new ChuckScreen(app, play, table));
+        for (const code of ["Enter", "Enter", "ArrowDown", "ArrowDown", "Enter", "KeyR"])
+          press(code);
+        await frames(120);
       } else if (scene === "club") {
         casino("rustyspur");
         g.s.comps = 75;
