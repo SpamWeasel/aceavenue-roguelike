@@ -71,6 +71,8 @@ export class BlackjackScreen implements Screen {
     } else {
       const tb = table as TableDef;
       this.rules = tb.rules as BjRules;
+      // Lucky hour: blackjacks pay 2 to 1 at this table for the visit.
+      if (g.hotTable === tb.id) this.rules = { ...this.rules, bjPays: 2 };
       this.shoe = g.shoe(tb);
       this.min = tb.min;
       this.max = tb.max;
@@ -411,7 +413,7 @@ export class BlackjackScreen implements Screen {
     }
     const title = this.roller
       ? `BLACKJACK  vs  ${this.roller.name.toUpperCase()}`
-      : `BLACKJACK  ·  ${(this.table as TableDef).label}  ·  ${g.casino?.name ?? ""}`;
+      : `BLACKJACK  ·  ${(this.table as TableDef).label}${g.hotTable === this.table?.id ? "  ·  LUCKY HOUR" : ""}  ·  ${g.casino?.name ?? ""}`;
     t.center(0, title, this.roller ? this.roller.color : C.yellow);
     t.center(1, `${rulesText(this.rules)}  ·  Bets ${money(this.min)}-${money(this.max)}`, C.gray);
 

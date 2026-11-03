@@ -1,14 +1,17 @@
 import { ROLLER_BY_ID } from "../../game/data/casinos";
 import { Game } from "../../game/game";
 import { App } from "./app";
+import { BaccaratScreen } from "./screens/baccarat";
 import { BlackjackScreen } from "./screens/blackjack";
+import { ClubScreen } from "./screens/club";
 import { CrapsScreen } from "./screens/craps";
 import { EndScreen, HelpScreen, SheetScreen, startGame, TitleScreen } from "./screens/menus";
 import { PokerScreen } from "./screens/poker";
 import { RouletteScreen } from "./screens/roulette";
 import { ShopScreen } from "./screens/shop";
 import { SlotsScreen } from "./screens/slots";
-import { RollerScreen } from "./screens/talk";
+import { RollerScreen, TalkScreen } from "./screens/talk";
+import { VideoPokerScreen } from "./screens/videopoker";
 import { loadSettings } from "./settings";
 import { listSlots, readSlot, writeSlot } from "./storage";
 
@@ -121,6 +124,47 @@ async function smoke(app: App, scene: string): Promise<void> {
         g.s.skills.slots = 2;
         g.s.pockets.push("rabbitfoot");
         app.push(new SlotsScreen(app, play, g.area.machines[0]));
+      } else if (scene === "video") {
+        casino("rustyspur");
+        g.s.skills.cards = 1;
+        g.s.skills.slots = 1;
+        app.push(new VideoPokerScreen(app, play, g.area.videos[0]));
+        press("Enter");
+      } else if (scene === "baccarat") {
+        g.s.chips.push("rustyspur", "coralgrotto");
+        g.s.cash = 3000;
+        casino("starlight");
+        const table = g.area.tables.find((t) => t.kind === "baccarat");
+        if (!table) throw new Error("no baccarat table");
+        const h = g.spinHistory(table);
+        for (let i = 0; i < 14; i++) h.push(1 + (i % 3 === 2 ? 1 : 0) + (i === 9 ? 1 : 0));
+        app.push(new BaccaratScreen(app, play, table));
+        for (const code of ["ArrowDown", "Enter", "Enter"]) press(code);
+      } else if (scene === "club") {
+        casino("rustyspur");
+        g.s.comps = 75;
+        app.push(new ClubScreen(app));
+      } else if (scene === "rival") {
+        casino("rustyspur");
+        g.s.cash = 1200;
+        g.s.rival.wins = 1;
+        app.push(new RollerScreen(app, play, g.rivalDef()));
+      } else if (scene === "millionaire") {
+        casino("rustyspur");
+        const npc = {
+          id: "m",
+          kind: "millionaire" as const,
+          x: 1,
+          y: 1,
+          glyph: "☻",
+          color: "#f2c14e",
+          name: "a tipsy millionaire",
+          wander: false,
+          line: "Cut the deck with me!",
+        };
+        app.push(new TalkScreen(app, npc));
+        press("Enter");
+        if (g.s.cash === 500) errors.push("the deck cut didn't settle");
       } else if (scene === "shop") {
         g.s.cash = 2000;
         app.push(new ShopScreen(app, "academy"));

@@ -1,9 +1,26 @@
-ACE AVENUE 0.1 - EARLY TEST BUILD (please read me)
+ACE AVENUE 0.2 - EARLY TEST BUILD (please read me)
 =================================================
 
 Thanks for testing Ace Avenue! It's an ASCII casino roguelike. You arrive on Ace Avenue with
 a few hundred dollars. Beat the high rollers of five casinos, win each boss's golden chip, and
 take on the Baron at the top of the Pinnacle.
+
+
+NEW IN 0.2 - "LUCKY STREAK"
+---------------------------
+- Video poker (Jacks or Better) in every casino. Read the pay table on the glass: a 9/6
+  machine pays back far more than a 6/5 one. With Card Sense, press B to hold what the
+  book says.
+- Baccarat tables at the Starlight Lounge, the Velvet Fox and the Pinnacle.
+- Your rival, "Dutch" Calloway, turns up on casino floors and plays you at five-card draw
+  for a quarter of your bankroll. Beat him three times for his lucky coin.
+- Floors change every visit: a tipsy millionaire who'll cut the deck with you, a pickpocket
+  hiding among the gamblers (walk into him first!), and "lucky hour" blackjack tables where
+  a blackjack pays 2 to 1 (look for the gold, blinking dealer).
+- The Players' Club: everything you bet at the house games earns points. Cash them in at
+  any cashier cage for drinks, cash back, lucky charms or a comped suite that clears heat.
+- Fixed faint grid lines between squares on high-resolution screens.
+- Your 0.1 save carries over.
 
 
 HOW TO RUN

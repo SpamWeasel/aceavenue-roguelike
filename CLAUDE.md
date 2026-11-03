@@ -28,8 +28,17 @@ setup (saves, smoke tests, packaging) is copied from it.
   cheat items add heat; the pit boss nearby doubles it; Charm and the horseshoe cut it. At 100
   you're walked out and banned until heat drops below 50 (+10 per Charm). Motel clears it all.
 - **Broke** (`checkBroke`): the run ends only with no cash, nothing to pawn and an unpaid loan.
-- **Saves:** whole `State` as JSON, `SAVE_VERSION` 1. 3 slots in `%APPDATA%\AceAvenue\Saves`
-  with rolling backups (from Rumble Row). A save is valid if it has numeric `version` and `cash`.
+- **0.2 "Lucky Streak":** `videopoker.ts` (Jacks or Better, `VP_TABLES` 9/6..6/5, `vpHint`
+  is the Card Sense hold advice) on `T.video` tiles listed in `area.videos`; `baccarat.ts`
+  (`dealCoup` follows the drawing rules) at casinos with a `baccarat` config. Floor events are
+  rolled in `floorEvents` each visit: `hotTable` (bjPays 2 at one table), the millionaire
+  (`cutDeck`), the pickpocket (`pickpocketTurn`: one turn of warning beside you, then he
+  steals; bumping him first calls `catchPickpocket`), and the rival Dutch (`RIVAL` in
+  casinos.ts, `rivalDef()` scales stake/persona, `endRivalDuel`, never in `s.beaten`, use
+  `rollerById`). Comp points: `houseResult` adds bet / `compUnit`; `redeem` at the cage.
+- **Saves:** whole `State` as JSON, `SAVE_VERSION` 2 (`Game.load` fills `comps` and `rival`
+  for 0.1 saves and moves you to the entry if a floor change put you inside a table).
+  3 slots in `%APPDATA%\AceAvenue\Saves` with rolling backups (from Rumble Row). A save is valid if it has numeric `version` and `cash`.
 - **Drawing:** `Term.draw` works in device pixels and snaps every rectangle, otherwise scaled
   displays show seams between cells.
 
@@ -39,6 +48,8 @@ setup (saves, smoke tests, packaging) is copied from it.
 - `pnpm check` = typecheck + Biome (pinned 2.5.15) + tests.
 - `pnpm smoke` builds, then opens each screen in the real app and writes screenshots and
   reports to `.smoke/` (scenes are listed in `scripts/smoke.mjs`, set up in `renderer/src/main.ts`).
+- Floor layouts may change between versions (new stations shift the seeded layout); that's
+  fine as long as `Game.load` keeps you on a walkable square.
 - `pnpm exec tsx scripts/duels.mts [matches]` plays bot duels against every high roller and
   prints win rates (0.1: most 35-55% for a simple bot; Hank and Fontaine ~30%: they punish
   calling stations).

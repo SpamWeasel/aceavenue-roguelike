@@ -1,10 +1,11 @@
-import { Shoe } from "./cards";
+import { type Card, cardName, newDeck, Shoe } from "./cards";
 import { C } from "./colors";
 import {
   CASINO_ORDER,
   CASINOS,
   type CasinoDef,
   type CasinoId,
+  RIVAL,
   ROLLER_BY_ID,
   ROLLER_CASINO,
   type RollerDef,
@@ -21,6 +22,9 @@ import {
 } from "./data/items";
 import {
   CHARM_STOCK,
+  CLUB_REWARDS,
+  type ClubRewardId,
+  COMP_UNIT,
   LOAN_INTEREST,
   LOAN_SIZE,
   LOAN_TERM,
@@ -35,6 +39,7 @@ import {
   type ShopId,
   STREET_LINES,
 } from "./data/shops";
+import type { PokerPersona } from "./poker";
 import { hashSeed, Rng } from "./rng";
 import {
   type Area,
@@ -48,10 +53,11 @@ import {
   type TableDef,
   type Tip,
   tileAt,
+  type VideoSpot,
   walkable,
 } from "./world";
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const POCKET_SIZE = 8;
 
 export type Difficulty = "easy" | "normal" | "hard";
@@ -123,6 +129,10 @@ export interface State {
   visits: Record<string, number>;
   /** A duel in progress: the money you have on that table. */
   duel: { rollerId: string; stack: number } | null;
+  /** Players' Club points from house play (0.2). */
+  comps: number;
+  /** Your rival Dutch (0.2): duels won and lost, and when you last met. */
+  rival: { wins: number; losses: number; last: number; coin: boolean };
   stats: {
     hands: number;
     duelsWon: number;
@@ -139,11 +149,14 @@ export type Interaction =
   | { kind: "table"; table: TableDef }
   | { kind: "machine"; machine: MachineSpot }
   | { kind: "bar" }
-  | { kind: "shop"; id: ShopId };
+  | { kind: "shop"; id: ShopId }
+  | { kind: "video"; spot: VideoSpot }
+  | { kind: "club" };
 
 /** A finished hand of a house game, for heat and statistics. */
 export interface HouseRound {
-  table: TableDef | MachineSpot;
+  /** Where it was played (for the pit boss). */
+  table: { x: number; y: number };
   bet: number;
   net: number;
   min: number;
@@ -161,6 +174,33 @@ const COOL_EVERY = 3;
 export const HEAT_MAX = 100;
 const DAY_START = 20 * 60;
 
+// Floor events (0.2), as a chance per casino visit.
+const HOT_TABLE_CHANCE = 0.3;
+const MILLIONAIRE_CHANCE = 0.25;
+const PICKPOCKET_CHANCE = 0.25;
+const RIVAL_CHANCE = 0.4;
+/** Turns between meetings with Dutch. */
+const RIVAL_GAP = 250;
+/** Dutch plays for this share of your bankroll. */
+const RIVAL_SHARE = 0.25;
+const RIVAL_MAX_STAKE = 50000;
+const RIVAL_WINS_FOR_COIN = 3;
+const MILLIONAIRE_BET = [50, 250, 1000, 2500, 5000];
+const PICKPOCKET_MAX = [50, 250, 750, 2000, 5000];
+const PICKPOCKET_REWARD = [25, 100, 250, 500, 1000];
+
+/** 1,234 -> 1,200: two significant figures, for stakes. */
+export function niceRound(n: number): number {
+  if (n <= 0) return 0;
+  const mag = 10 ** Math.max(0, Math.floor(Math.log10(n)) - 1);
+  return Math.round(n / mag) * mag;
+}
+
+/** Any high roller by id, including the rival. */
+export function rollerById(id: string): RollerDef {
+  return id === RIVAL.id ? RIVAL : ROLLER_BY_ID[id];
+}
+
 /** All the game rules. Screens read `s` and `area`, call methods, and play `sounds`. */
 export class Game {
   s: State;
@@ -174,6 +214,8 @@ export class Game {
   readonly spins = new Map<string, number[]>();
   /** Craps point per table. */
   readonly points = new Map<string, number | null>();
+  /** A blackjack table paying 2:1 for a blackjack during this visit ("lucky hour"). */
+  hotTable: string | null = null;
   private pitTarget = new Map<string, { x: number; y: number }>();
 
   private constructor(s: State) {
@@ -209,6 +251,8 @@ export class Game {
       visits: {},
       duel: null,
       stats: { hands: 0, duelsWon: 0, duelsLost: 0, biggestWin: 0, peak: cash },
+      comps: 0,
+      rival: { wins: 0, losses: 0, last: 0, coin: false },
       over: null,
       log: [],
     });
@@ -228,12 +272,21 @@ export class Game {
     if (typeof s.version !== "number" || typeof s.cash !== "number" || !s.skills)
       throw new Error("This doesn't look like an Ace Avenue save.");
     if (s.version > SAVE_VERSION) throw new Error("This save is from a newer version of the game.");
+    // 0.1 saves: no comp points and no rival yet.
+    s.comps ??= 0;
+    s.rival ??= { wins: 0, losses: 0, last: 0, coin: false };
+    s.version = SAVE_VERSION;
     const g = new Game(s);
     g.area = g.areaFor(s.area);
+    // Floors changed between versions: never leave you standing inside a table.
+    if (!walkable(tileAt(g.area, s.x, s.y)) && tileAt(g.area, s.x, s.y) !== T.vipDoor) {
+      s.x = g.area.entry.x;
+      s.y = g.area.entry.y;
+    }
     g.populate();
     if (s.duel) {
       // The game closed during a duel: you walked away with what was in front of you.
-      const r = ROLLER_BY_ID[s.duel.rollerId];
+      const r = rollerById(s.duel.rollerId);
       s.cash += s.duel.stack;
       g.log(`You left ${r?.short ?? "the"} table with ${money(s.duel.stack)}.`, C.gray);
       s.duel = null;
@@ -387,6 +440,73 @@ export class Game {
         { kind: "security", glyph: "§", color: C.blue, name: "security", wander: false },
         { x, y: 21 },
       );
+    this.floorEvents(rng, floor, place, add);
+  }
+
+  /** Things that might be going on during this visit. */
+  private floorEvents(
+    rng: Rng,
+    floor: { x: number; y: number }[],
+    place: (spots: { x: number; y: number }[]) => { x: number; y: number } | null,
+    add: (npc: Omit<Npc, "id" | "x" | "y">, at: { x: number; y: number } | null) => void,
+  ): void {
+    const a = this.area;
+    this.hotTable = null;
+    const bj = a.tables.filter((t) => t.kind === "blackjack" && (t.rules?.bjPays ?? 0) >= 1.5);
+    if (bj.length && rng.chance(HOT_TABLE_CHANCE)) {
+      const t = rng.pick(bj);
+      this.hotTable = t.id;
+      this.log(
+        `Lucky hour! A blackjack pays 2 to 1 at ${t.label} (${t.region}) while you're here.`,
+        C.gold,
+      );
+    }
+    if (rng.chance(MILLIONAIRE_CHANCE))
+      add(
+        {
+          kind: "millionaire",
+          glyph: "☻",
+          color: C.gold,
+          name: "a tipsy millionaire",
+          wander: true,
+          line: "Hey! You! Kid! Cut the deck with me! High card wins! Ties go to you, I'm feeling generous!",
+        },
+        place(floor),
+      );
+    if (rng.chance(PICKPOCKET_CHANCE))
+      add(
+        {
+          kind: "pickpocket",
+          glyph: "☺",
+          color: C.light,
+          name: "a gambler",
+          wander: true,
+          line: "",
+        },
+        place(floor),
+      );
+    if (this.canMeetRival() && rng.chance(RIVAL_CHANCE)) {
+      add(
+        {
+          kind: "rival",
+          glyph: RIVAL.glyph,
+          color: RIVAL.color,
+          name: RIVAL.name,
+          wander: true,
+          rollerId: RIVAL.id,
+        },
+        place(floor),
+      );
+      this.s.rival.last = this.s.turn;
+      this.log(
+        "Somebody whistles at you across the floor. It's Dutch Calloway, your rival.",
+        C.orange,
+      );
+    }
+  }
+
+  canMeetRival(): boolean {
+    return this.s.turn - this.s.rival.last >= RIVAL_GAP && this.s.cash >= 100;
   }
 
   /** Gossip for this visit: some true, some not (Charm makes it more reliable). */
@@ -516,6 +636,11 @@ export class Game {
       return m ? { kind: "machine", machine: m } : null;
     }
     if (t === T.bar) return { kind: "bar" };
+    if (t === T.video) {
+      const spot = this.area.videos.find((v) => v.x === x && v.y === y);
+      return spot ? { kind: "video", spot } : null;
+    }
+    if (t === T.cage) return { kind: "club" };
     if (t === T.vipDoor && !this.vipOpen()) {
       const c = this.area.casino as CasinoDef;
       const left = c.rollers.filter((r) => !this.s.beaten.includes(r.id));
@@ -560,6 +685,7 @@ export class Game {
 
   private npcTurn(): void {
     const a = this.area;
+    this.pickpocketTurn();
     const occupied = (x: number, y: number) =>
       (x === this.s.x && y === this.s.y) || a.npcs.some((n) => n.x === x && n.y === y);
     for (const n of a.npcs) {
@@ -578,7 +704,8 @@ export class Game {
           dy = Math.sign(target.y - n.y);
         }
       }
-      if (n.kind === "collector") {
+      const near = Math.max(Math.abs(this.s.x - n.x), Math.abs(this.s.y - n.y));
+      if (n.kind === "collector" || (n.kind === "pickpocket" && near <= 8)) {
         dx = Math.sign(this.s.x - n.x);
         dy = Math.sign(this.s.y - n.y);
       }
@@ -672,6 +799,7 @@ export class Game {
   /** Records a house game hand: statistics, time, heat. Returns true if you got thrown out. */
   houseResult(r: HouseRound): boolean {
     this.s.stats.hands++;
+    this.s.comps += r.bet / this.compUnit;
     if (r.net > this.s.stats.biggestWin) this.s.stats.biggestWin = r.net;
     this.s.stats.peak = Math.max(this.s.stats.peak, this.s.cash);
     let heat = 0;
@@ -945,8 +1073,12 @@ export class Game {
   endDuel(result: "won" | "lost" | "left", stack: number, note?: string): void {
     const d = this.s.duel;
     if (!d) return;
-    const r = ROLLER_BY_ID[d.rollerId];
+    const r = rollerById(d.rollerId);
     this.s.duel = null;
+    if (r.id === RIVAL.id) {
+      this.endRivalDuel(result, stack);
+      return;
+    }
     this.receive(stack);
     this.tick(10);
     if (result === "won") {
@@ -994,6 +1126,172 @@ export class Game {
   /** How cagey the high rollers are on this difficulty. */
   get faceBonus(): number {
     return DIFFICULTY[this.s.difficulty].face;
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // The rival
+
+  /** Dutch, set up for a duel now: he plays for a share of your bankroll and gets sharper. */
+  rivalDef(): RollerDef {
+    const met = this.s.rival.wins + this.s.rival.losses;
+    const p = RIVAL.persona as PokerPersona;
+    const stake = Math.min(RIVAL_MAX_STAKE, Math.max(100, niceRound(this.s.cash * RIVAL_SHARE)));
+    return {
+      ...RIVAL,
+      stake,
+      persona: {
+        ...p,
+        aggro: Math.min(0.9, p.aggro + met * 0.04),
+        face: Math.min(0.9, p.face + met * 0.05),
+      },
+    };
+  }
+
+  private endRivalDuel(result: "won" | "lost" | "left", stack: number): void {
+    const rv = this.s.rival;
+    this.receive(stack);
+    this.tick(10);
+    this.area.npcs = this.area.npcs.filter((n) => n.kind !== "rival");
+    rv.last = this.s.turn;
+    if (result === "won") {
+      rv.wins++;
+      this.log(
+        `You beat Dutch Calloway and pocket ${money(stack)}! (${rv.wins} win${rv.wins === 1 ? "" : "s"} against him.)`,
+        C.yellow,
+      );
+      this.sound("bigwin");
+      if (rv.wins >= RIVAL_WINS_FOR_COIN && !rv.coin) {
+        rv.coin = true;
+        this.s.pockets.push("dutchcoin");
+        this.log(
+          `Dutch flips you his lucky coin. "Keep it. I'll win it back." (${ITEMS.dutchcoin.text})`,
+          C.green,
+        );
+      }
+    } else if (result === "lost") {
+      rv.losses++;
+      this.log("Dutch rakes in your money with a grin and strolls off.", C.red);
+      this.sound("lose");
+      this.checkBroke();
+    } else {
+      this.log(
+        `You walk away from Dutch with ${money(stack)}. "Chicken!" he calls after you.`,
+        C.gray,
+      );
+      this.checkBroke();
+    }
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Floor events
+
+  /** The tipsy millionaire: cut the deck for a big bet. Returns the cards and the result. */
+  cutDeck(npc: Npc): { yours: Card; theirs: Card; bet: number; won: boolean } | string {
+    if (npc.kind !== "millionaire") return "...";
+    const bet = this.millionaireBet();
+    if (bet < 1) return "You don't have anything to bet.";
+    const deck = this.rng.shuffle(newDeck());
+    const yours = deck[0];
+    const theirs = deck[1];
+    const won = yours.rank >= theirs.rank;
+    this.pay(bet);
+    if (won) this.receive(bet * 2);
+    this.log(
+      won
+        ? `You cut a ${cardName(yours)} to the millionaire's ${cardName(theirs)} and win ${money(bet)}!`
+        : `Your ${cardName(yours)} loses to the millionaire's ${cardName(theirs)}. There goes ${money(bet)}.`,
+      won ? C.lime : C.red,
+    );
+    this.sound(won ? "bigwin" : "lose");
+    npc.kind = "patron";
+    npc.glyph = "☺";
+    npc.name = "a happy millionaire";
+    npc.line = won ? "Ha! Easy come, easy go! Barkeep!" : "Ha! Thanks for playing, kid!";
+    this.checkBroke();
+    return { yours, theirs, bet, won };
+  }
+
+  /** What the millionaire wants to bet you (no more than you have). */
+  millionaireBet(): number {
+    return Math.min(this.s.cash, MILLIONAIRE_BET[(this.casino?.tier ?? this.tier) - 1]);
+  }
+
+  /** Bumping into the pickpocket first: you catch him. */
+  catchPickpocket(npc: Npc): string {
+    const reward = PICKPOCKET_REWARD[(this.casino?.tier ?? this.tier) - 1];
+    this.area.npcs = this.area.npcs.filter((n) => n !== npc);
+    this.receive(reward);
+    this.log(
+      `You bump into a shifty gambler and a pile of stolen wallets spills out of his coat. Security hauls him off and the casino thanks you with ${money(reward)}.`,
+      C.lime,
+    );
+    this.sound("coin");
+    return `A pile of stolen wallets falls out of his coat! Security grabs him and slips you ${money(reward)} for your trouble.`;
+  }
+
+  /** A pickpocket next to you tries his luck; Charm helps you notice. */
+  private pickpocketTurn(): void {
+    const a = this.area;
+    const pp = a.npcs.find((n) => n.kind === "pickpocket");
+    if (!pp) return;
+    const close = Math.max(Math.abs(pp.x - this.s.x), Math.abs(pp.y - this.s.y)) <= 1;
+    if (!close || !pp.ready) {
+      // He needs a turn beside you before he strikes: your chance to bump into him first.
+      pp.ready = close;
+      if (close && this.skill("charm") >= 2)
+        this.log("A gambler sidles up a little too close...", C.orange);
+      return;
+    }
+    a.npcs = a.npcs.filter((n) => n !== pp);
+    if (this.rng.chance(0.25 + 0.2 * this.skill("charm"))) {
+      this.log(
+        "You feel a hand slip into your pocket - and grab it! The pickpocket wriggles free and bolts.",
+        C.lime,
+      );
+      return;
+    }
+    const take = Math.min(
+      Math.floor(this.s.cash * 0.1),
+      PICKPOCKET_MAX[(this.casino?.tier ?? this.tier) - 1],
+    );
+    if (take <= 0) return;
+    this.s.cash -= take;
+    this.log(
+      `Someone brushes past you. A minute later your pocket is ${money(take)} lighter. Pickpocket!`,
+      C.red,
+    );
+    this.sound("lose");
+    this.checkBroke();
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // The Players' Club
+
+  /** One comp point per table minimum wagered at the house games. */
+  get compUnit(): number {
+    return COMP_UNIT[(this.casino?.tier ?? this.tier) - 1];
+  }
+
+  clubPrice(id: ClubRewardId): number {
+    return CLUB_REWARDS.find((r) => r.id === id)?.points ?? 0;
+  }
+
+  redeem(id: ClubRewardId): string | null {
+    const reward = CLUB_REWARDS.find((r) => r.id === id);
+    if (!reward) return null;
+    if (Math.floor(this.s.comps) < reward.points) return "You don't have enough points for that.";
+    if (reward.item && this.s.pockets.length >= POCKET_SIZE) return "Your pockets are full.";
+    this.s.comps -= reward.points;
+    const c = this.casino;
+    if (id === "soda" && c) this.s.heat[c.id] = Math.max(0, this.heatIn(c.id) - 25);
+    else if (id === "cash") this.receive(this.compUnit * 3);
+    else if (id === "suite") {
+      this.s.heat = {};
+      this.s.banned = {};
+    } else if (reward.item) this.s.pockets.push(reward.item);
+    this.log(`Players' Club: ${reward.label}. ${reward.text}`, C.gold);
+    this.sound("buy");
+    return null;
   }
 
   // -------------------------------------------------------------------------------------------

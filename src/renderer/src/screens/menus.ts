@@ -623,6 +623,9 @@ const HELP_PAGES: { title: string; lines: string[] }[] = [
       "  $  Slot machines (each one is loose, fair or tight)",
       "  ◎  Roulette (from the Coral Grotto on)",
       "  •  Craps (from the Starlight Lounge on)",
+      "  ▣  Video poker - Jacks or Better (read the pay table on the glass!)",
+      "  P B T  Baccarat (from the Starlight Lounge on)",
+      "The cashier cages are the Players' Club desk: house play earns points for perks.",
       "",
       "Gamblers (☺) know things. A white ☺ has gossip to sell: which slot is loose, which",
       "wheel is worn, and what a high roller does when they're bluffing.",
@@ -660,6 +663,24 @@ const HELP_PAGES: { title: string; lines: string[] }[] = [
       "Honest Abe's Pawn buys and sells second-hand (and sometimes shady) goods.",
       "Drinks at the bar (or from a waitress, w) boost a skill for a while.",
       "Vinnie's Easy Money lends cash. Pay it back on time.",
+    ],
+  },
+  {
+    title: "Around the floor",
+    lines: [
+      "Casino floors change every visit. Keep an eye out for:",
+      "",
+      '  D  "Dutch" Calloway, your rival. He plays five-card draw for a quarter of your',
+      "     bankroll. Beat him three times and he'll part with his lucky coin.",
+      "  ☻  A tipsy millionaire who wants to cut the deck with you. High card wins, and",
+      "     he's so generous that ties go to you.",
+      "  ☺  A pickpocket hides among the gamblers. Walk into him first and you catch him;",
+      "     let him sidle up beside you and your wallet gets lighter. Charm helps you notice.",
+      "  d  A gold, blinking dealer means LUCKY HOUR: a blackjack pays 2 to 1 at that table.",
+      "",
+      "Video poker is the closest thing to a fair game in the house. A 9/6 machine (9 for a",
+      "full house, 6 for a flush) pays back about 99.5% with good play; a 6/5 machine only 95%.",
+      "With Card Sense, the machine shows which cards the book would hold (press B).",
     ],
   },
   {
@@ -866,6 +887,12 @@ export class SheetScreen implements Screen {
       x,
       y++,
       `Hands played ${s.stats.hands}   Duels won ${s.stats.duelsWon}, lost ${s.stats.duelsLost}`,
+      C.gray,
+    );
+    t.text(
+      x,
+      y++,
+      `Players' Club points ${Math.floor(s.comps)}   Against Dutch: ${s.rival.wins} won, ${s.rival.losses} lost`,
       C.gray,
     );
     y++;

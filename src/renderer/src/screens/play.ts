@@ -8,7 +8,9 @@ import { buildingColor, MAP_H, MAP_W, type Npc, T, tileAt } from "../../../game/
 import type { App, Screen } from "../app";
 import { ACTION_DIR, actionFor } from "../settings";
 import { COLS, ROWS, type Term } from "../term";
+import { BaccaratScreen } from "./baccarat";
 import { BlackjackScreen } from "./blackjack";
+import { ClubScreen } from "./club";
 import { CrapsScreen } from "./craps";
 import { meter, wrapLines } from "./draw";
 import { EndScreen, HelpScreen, LogScreen, PauseScreen, SheetScreen } from "./menus";
@@ -16,6 +18,7 @@ import { RouletteScreen } from "./roulette";
 import { ShopScreen } from "./shop";
 import { SlotsScreen } from "./slots";
 import { BarScreen, RollerScreen, TalkScreen } from "./talk";
+import { VideoPokerScreen } from "./videopoker";
 
 const MAP_X = 1;
 const MAP_Y = 1;
@@ -85,6 +88,7 @@ export class PlayScreen implements Screen {
       case "talk":
         if (it.npc.kind === "roller" && it.npc.rollerId)
           app.push(new RollerScreen(app, this, ROLLER_BY_ID[it.npc.rollerId]));
+        else if (it.npc.kind === "rival") app.push(new RollerScreen(app, this, g.rivalDef()));
         else app.push(new TalkScreen(app, it.npc));
         break;
       case "bar":
@@ -101,6 +105,13 @@ export class PlayScreen implements Screen {
         if (it.table.kind === "blackjack") app.push(new BlackjackScreen(app, this, it.table));
         else if (it.table.kind === "roulette") app.push(new RouletteScreen(app, this, it.table));
         else if (it.table.kind === "craps") app.push(new CrapsScreen(app, this, it.table));
+        else if (it.table.kind === "baccarat") app.push(new BaccaratScreen(app, this, it.table));
+        break;
+      case "video":
+        app.push(new VideoPokerScreen(app, this, it.spot));
+        break;
+      case "club":
+        app.push(new ClubScreen(app));
         break;
     }
   }
@@ -156,7 +167,7 @@ export class PlayScreen implements Screen {
               if (table.kind === "blackjack") {
                 if (ly === 0 && lx === 2) {
                   ch = "d";
-                  fg = C.white;
+                  fg = g.hotTable === table.id ? (blink % 2 ? C.gold : C.yellow) : C.white;
                 } else if (ly === 1) {
                   ch = "◦";
                   fg = C.paper;
@@ -167,6 +178,16 @@ export class PlayScreen implements Screen {
               } else if (table.kind === "craps") {
                 ch = lx === 3 ? "⁞" : ly === 0 ? "~" : "•";
                 fg = lx === 3 ? C.white : C.paper;
+              } else if (table.kind === "baccarat") {
+                ch = ly === 0 ? (lx === 2 || lx === 3 ? "d" : "~") : ("PBTTBP"[lx] ?? "·");
+                fg =
+                  ly === 0
+                    ? lx === 2 || lx === 3
+                      ? C.white
+                      : C.paper
+                    : lx === 2 || lx === 3
+                      ? C.gold
+                      : C.paper;
               } else if (table.kind === "duel") {
                 ch = "♠♥♦♣"[(lx + ly) % 4];
                 fg = (lx + ly) % 4 === 1 || (lx + ly) % 4 === 2 ? C.red : C.black;
@@ -179,6 +200,11 @@ export class PlayScreen implements Screen {
             bg = c ? c.theme.felt : C.felt;
             ch = "◎";
             fg = (blink + y) % 2 ? C.gold : C.amber;
+            break;
+          case T.video:
+            bg = "#0c1a3a";
+            ch = "▣";
+            fg = (x + blink) % 6 === 0 ? C.white : C.cyan;
             break;
           case T.machine: {
             bg = "#2a0a24";
@@ -291,7 +317,8 @@ export class PlayScreen implements Screen {
       if (n.kind === "roller") {
         const beaten = g.beaten(n.id);
         t.put(sx, sy, n.glyph, beaten ? C.gray : n.color, beaten ? undefined : C.darkGold);
-      } else t.put(sx, sy, n.glyph, n.tip ? C.white : n.color);
+      } else if (n.kind === "rival") t.put(sx, sy, n.glyph, n.color, C.wine);
+      else t.put(sx, sy, n.glyph, n.tip ? C.white : n.color);
     }
     t.put(MAP_X + g.s.x, MAP_Y + g.s.y, "@", C.yellow);
   }
@@ -314,8 +341,12 @@ export class PlayScreen implements Screen {
         return `${table.label}: ${limits}. ${rulesText(table.rules)}.`;
       if (table.kind === "roulette")
         return `${table.label}: ${limits}. ${table.wheel?.doubleZero ? "Double zero" : "Single zero"} wheel.`;
+      if (table.kind === "baccarat") return `Baccarat: ${limits}. Bet Player, Banker or Tie.`;
       return `Craps: ${limits}.`;
     }
+    const v = a.videos.find((vs) => vs.x === x && vs.y === y);
+    if (v)
+      return `Video poker (Jacks or Better), ${v.region}: ${money(v.coin)} a coin. Pay table ${v.table} on the glass.`;
     const m = g.machineAt(x, y);
     if (m) {
       const sense = g.skill("slots");
@@ -343,7 +374,7 @@ export class PlayScreen implements Screen {
       [T.vipDoor]: g.vipOpen()
         ? "The VIP room. Open to you."
         : "The VIP room. Beat the high rollers first.",
-      [T.cage]: "The cashier's cage.",
+      [T.cage]: "The cashier's cage: the Players' Club desk. Trade comp points for perks.",
       [T.plant]: "A potted palm.",
       [T.palm]: "A palm tree.",
       [T.lamp]: "A street lamp.",
@@ -398,6 +429,8 @@ export class PlayScreen implements Screen {
       y += 4 - Math.min(3, hot.length);
     }
     y++;
+    t.text(x, y, "Club pts ", C.gray);
+    t.text(x + 9, y++, String(Math.floor(s.comps)), C.gold);
     t.text(x, y, "Chips ", C.gray);
     CASINO_ORDER.forEach((id, i) => {
       const has = s.chips.includes(id);
@@ -488,5 +521,11 @@ export function describeNpc(g: Game, n: Npc): string {
       return "Someone strolling down the Avenue.";
     case "collector":
       return "Knuckles, Vinnie's debt collector.";
+    case "millionaire":
+      return "A tipsy millionaire looking for someone to gamble with.";
+    case "pickpocket":
+      return g.skill("charm") >= 2 ? "A shifty-eyed gambler. Watch your wallet." : "A gambler.";
+    case "rival":
+      return `"Dutch" Calloway, your rival. You've beaten him ${g.s.rival.wins} time${g.s.rival.wins === 1 ? "" : "s"}.`;
   }
 }

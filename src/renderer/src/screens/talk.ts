@@ -1,4 +1,5 @@
 import { rulesText } from "../../../game/blackjack";
+import { type Card, cardName } from "../../../game/cards";
 import { C } from "../../../game/colors";
 import type { RollerDef } from "../../../game/data/casinos";
 import { DRINK_ORDER, DRINKS } from "../../../game/data/items";
@@ -9,7 +10,7 @@ import type { App, Screen } from "../app";
 import { isBack, isConfirm } from "../input";
 import { COLS, type Term } from "../term";
 import { BlackjackScreen } from "./blackjack";
-import { drawPortrait, wrapLines } from "./draw";
+import { drawCard, drawPortrait, wrapLines } from "./draw";
 import type { PlayScreen } from "./play";
 import { PokerScreen } from "./poker";
 
@@ -131,7 +132,15 @@ export class RollerScreen implements Screen {
     const x = Math.floor((COLS - w) / 2);
     const y = 7;
     const h = 18;
-    t.box(x, y, w, h, r.color, r.boss ? "HIGH ROLLER - BOSS" : "HIGH ROLLER", r.color);
+    t.box(
+      x,
+      y,
+      w,
+      h,
+      r.color,
+      r.id === "dutch" ? "YOUR RIVAL" : r.boss ? "HIGH ROLLER - BOSS" : "HIGH ROLLER",
+      r.color,
+    );
     drawPortrait(t, x + 3, y + 2, r.look);
     const tx = x + 17;
     t.text(tx, y + 2, r.name, r.color);
@@ -145,6 +154,15 @@ export class RollerScreen implements Screen {
       g.beaten(r.id) ? C.green : C.light,
     );
     if (r.tells && g.knowsTell(r.id)) t.text(tx, y + 5, "You've heard about their tell.", C.cyan);
+    else if (r.id === "dutch")
+      t.text(
+        tx,
+        y + 5,
+        `Your record against him: ${g.s.rival.wins} won, ${g.s.rival.losses} lost.`,
+        C.gray,
+        undefined,
+        x + w - 2,
+      );
     wrapLines(`"${this.line.replace(/^"|"$/g, "")}"`, w - 20)
       .slice(0, 5)
       .forEach((l, i) => {
@@ -169,38 +187,73 @@ export class TalkScreen implements Screen {
   private cursor = 0;
   private said: string;
   private color: string = C.white;
+  private cut: { yours: Card; theirs: Card } | null = null;
 
   constructor(
     private app: App,
     private npc: Npc,
   ) {
     const g = app.game as Game;
-    this.said = npc.tip
-      ? `Say, friend... I know a thing or two. Spot me ${money(npc.tip.price)} and I'll tell you.`
-      : g.lineFor(npc);
+    if (npc.kind === "pickpocket") {
+      this.said = g.catchPickpocket(npc);
+      this.color = C.lime;
+    } else
+      this.said = npc.tip
+        ? `Say, friend... I know a thing or two. Spot me ${money(npc.tip.price)} and I'll tell you.`
+        : g.lineFor(npc);
+  }
+
+  private get game(): Game {
+    return this.app.game as Game;
+  }
+
+  /** What they're offering, if anything: a paid tip or a cut of the deck. */
+  private offer(): { label: string; on: boolean; act: () => void } | null {
+    const g = this.game;
+    const tip = this.npc.tip;
+    if (tip)
+      return {
+        label: `Pay ${money(tip.price)}`,
+        on: g.s.cash >= tip.price,
+        act: () => {
+          const text = tip.text;
+          const err = g.buyTip(this.npc);
+          this.said = err ?? text;
+          this.color = err ? C.orange : C.cyan;
+          if (err) this.app.sound("deny");
+        },
+      };
+    if (this.npc.kind === "millionaire") {
+      const bet = g.millionaireBet();
+      return {
+        label: `Cut the deck for ${money(bet)}`,
+        on: bet >= 1,
+        act: () => {
+          const r = g.cutDeck(this.npc);
+          if (typeof r === "string") {
+            this.said = r;
+            return;
+          }
+          this.cut = r;
+          this.said = r.won
+            ? `Aw, nuts! Your ${cardName(r.yours)} beats my ${cardName(r.theirs)}. That's ${money(r.bet)} to you, kid!`
+            : `Ha HA! My ${cardName(r.theirs)} beats your ${cardName(r.yours)}! Better luck next time, kid!`;
+          this.color = r.won ? C.lime : C.red;
+        },
+      };
+    }
+    return null;
   }
 
   key(e: KeyboardEvent): void {
-    const g = this.app.game as Game;
-    const tip = this.npc.tip;
-    if (tip) {
+    const offer = this.offer();
+    if (offer) {
       if (up(e) || down(e)) this.cursor = 1 - this.cursor;
       else if (isBack(e)) this.app.pop();
       else if (isConfirm(e)) {
-        if (this.cursor === 1) {
-          this.app.pop();
-          return;
-        }
-        const text = tip.text;
-        const err = g.buyTip(this.npc);
-        if (err) {
-          this.said = err;
-          this.color = C.orange;
-          this.app.sound("deny");
-        } else {
-          this.said = text;
-          this.color = C.cyan;
-        }
+        if (this.cursor === 1) this.app.pop();
+        else if (offer.on) offer.act();
+        else this.app.sound("deny");
       }
       return;
     }
@@ -208,25 +261,25 @@ export class TalkScreen implements Screen {
   }
 
   draw(t: Term): void {
-    const g = this.app.game as Game;
     const w = 70;
     const x = Math.floor((COLS - w) / 2);
-    const y = 10;
+    const y = 9;
     const lines = wrapLines(`"${this.said}"`, w - 6);
-    const h = 8 + lines.length;
+    const offer = this.offer();
+    const h = 9 + lines.length + (this.cut ? 6 : 0);
     t.box(x, y, w, h, this.npc.color, this.npc.name.replace(/^a /, "").toUpperCase());
     t.put(x + 3, y + 2, this.npc.glyph, this.npc.color);
     t.text(x + 5, y + 2, this.npc.name[0].toUpperCase() + this.npc.name.slice(1), this.npc.color);
     lines.forEach((l, i) => t.text(x + 3, y + 4 + i, l, this.color));
-    if (this.npc.tip)
-      drawChoices(
-        t,
-        x + 3,
-        y + 5 + lines.length,
-        [`Pay ${money(this.npc.tip.price)}`, "No thanks"],
-        this.cursor,
-        [g.s.cash >= this.npc.tip.price, true],
-      );
+    let yy = y + 5 + lines.length;
+    if (this.cut) {
+      t.text(x + 3, yy + 2, "You", C.yellow);
+      drawCard(t, x + 8, yy, this.cut.yours);
+      t.text(x + 20, yy + 2, "Him", C.gold);
+      drawCard(t, x + 25, yy, this.cut.theirs);
+      yy += 6;
+    }
+    if (offer) drawChoices(t, x + 3, yy, [offer.label, "No thanks"], this.cursor, [offer.on, true]);
     else t.text(x + 3, y + h - 2, "Enter / Esc", C.dim);
   }
 }

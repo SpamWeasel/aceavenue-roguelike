@@ -95,7 +95,8 @@ export type ItemId =
   | "clover"
   | "dollar"
   | "markeddeck"
-  | "peekring";
+  | "peekring"
+  | "dutchcoin";
 
 export type ItemKind = "charm" | "lucky" | "cheat";
 
@@ -115,6 +116,16 @@ export interface ItemDef {
 }
 
 export const ITEMS: Record<ItemId, ItemDef> = {
+  dutchcoin: {
+    id: "dutchcoin",
+    name: "Dutch's Lucky Coin",
+    glyph: "¢",
+    color: C.orange,
+    price: 1600,
+    kind: "charm",
+    text: "+1 Poker Face. Your rival's coin, won fair and square.",
+    skill: ["face", 1],
+  },
   horseshoe: {
     id: "horseshoe",
     name: "Lucky Horseshoe",

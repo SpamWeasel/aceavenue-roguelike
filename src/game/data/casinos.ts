@@ -1,9 +1,10 @@
 import type { BjRules } from "../blackjack";
 import { C } from "../colors";
 import type { PokerPersona, TellKind } from "../poker";
+import type { VpTableId } from "../videopoker";
 import type { ItemId } from "./items";
 
-export type HouseGame = "blackjack" | "slots" | "roulette" | "craps";
+export type HouseGame = "blackjack" | "slots" | "roulette" | "craps" | "video" | "baccarat";
 export type CasinoId = "rustyspur" | "coralgrotto" | "starlight" | "velvetfox" | "pinnacle";
 export const CASINO_ORDER: CasinoId[] = [
   "rustyspur",
@@ -96,6 +97,9 @@ export interface CasinoDef {
   bj: { min: number; max: number; rules: BjRules[] };
   roulette?: { min: number; max: number; doubleZero: boolean };
   craps?: { min: number; max: number };
+  baccarat?: { min: number; max: number };
+  /** Video poker: coin size and the pay tables its machines can have (picked at random). */
+  video: { coin: number; tables: VpTableId[] };
   slotCoin: number;
   /** Chance each slot machine is loose. */
   looseChance: number;
@@ -127,8 +131,9 @@ export const CASINOS: Record<CasinoId, CasinoDef> = {
       accent: C.amber,
       sign: C.orange,
     },
-    games: ["blackjack", "slots"],
+    games: ["blackjack", "slots", "video"],
     bj: { min: 5, max: 100, rules: [shoe6h, shoe6h, sixFive] },
+    video: { coin: 1, tables: ["8/5", "7/5", "6/5", "9/6"] },
     slotCoin: 1,
     looseChance: 0.15,
     biasChance: 0,
@@ -304,9 +309,10 @@ export const CASINOS: Record<CasinoId, CasinoDef> = {
       accent: C.cyan,
       sign: C.cyan,
     },
-    games: ["blackjack", "slots", "roulette"],
+    games: ["blackjack", "slots", "video", "roulette"],
     bj: { min: 25, max: 500, rules: [shoe6, shoe6h, sixFive] },
     roulette: { min: 5, max: 500, doubleZero: false },
+    video: { coin: 5, tables: ["8/5", "7/5", "9/6", "6/5"] },
     slotCoin: 5,
     looseChance: 0.14,
     biasChance: 0.4,
@@ -474,10 +480,12 @@ export const CASINOS: Record<CasinoId, CasinoDef> = {
       accent: C.magenta,
       sign: C.magenta,
     },
-    games: ["blackjack", "slots", "roulette", "craps"],
+    games: ["blackjack", "slots", "video", "roulette", "craps", "baccarat"],
     bj: { min: 50, max: 1000, rules: [shoe6h, { ...shoe6h, decks: 8 }, sixFive] },
     roulette: { min: 25, max: 1000, doubleZero: true },
     craps: { min: 25, max: 1000 },
+    baccarat: { min: 50, max: 2000 },
+    video: { coin: 25, tables: ["8/5", "6/5", "9/6", "7/5"] },
     slotCoin: 25,
     looseChance: 0.13,
     biasChance: 0.35,
@@ -650,10 +658,12 @@ export const CASINOS: Record<CasinoId, CasinoDef> = {
       accent: C.gold,
       sign: C.gold,
     },
-    games: ["blackjack", "slots", "roulette", "craps"],
+    games: ["blackjack", "slots", "video", "roulette", "craps", "baccarat"],
     bj: { min: 100, max: 2500, rules: [shoe6, double2, sixFive] },
     roulette: { min: 50, max: 2500, doubleZero: false },
     craps: { min: 50, max: 2500 },
+    baccarat: { min: 100, max: 5000 },
+    video: { coin: 50, tables: ["8/5", "9/6", "7/5", "6/5"] },
     slotCoin: 50,
     looseChance: 0.12,
     biasChance: 0.3,
@@ -821,10 +831,12 @@ export const CASINOS: Record<CasinoId, CasinoDef> = {
       accent: C.gold,
       sign: C.darkRed,
     },
-    games: ["blackjack", "slots", "roulette", "craps"],
+    games: ["blackjack", "slots", "video", "roulette", "craps", "baccarat"],
     bj: { min: 250, max: 5000, rules: [shoe6, double2, shoe6h] },
     roulette: { min: 100, max: 5000, doubleZero: false },
     craps: { min: 100, max: 5000 },
+    baccarat: { min: 250, max: 10000 },
+    video: { coin: 100, tables: ["9/6", "8/5", "7/5", "6/5"] },
     slotCoin: 100,
     looseChance: 0.1,
     biasChance: 0.25,
@@ -991,3 +1003,49 @@ export const ROLLER_BY_ID: Record<string, RollerDef> = Object.fromEntries(
 export const ROLLER_CASINO: Record<string, CasinoId> = Object.fromEntries(
   CASINO_ORDER.flatMap((id) => [...CASINOS[id].rollers, CASINOS[id].boss].map((r) => [r.id, id])),
 );
+
+/**
+ * Dutch Calloway, a young card sharp working his way up the Avenue at the same time as you.
+ * He turns up on casino floors and plays you for a share of your bankroll.
+ */
+export const RIVAL: RollerDef = {
+  id: "dutch",
+  name: '"Dutch" Calloway',
+  short: "Dutch",
+  title: "your rival on the Avenue",
+  glyph: "D",
+  color: C.orange,
+  game: "poker",
+  stake: 100,
+  persona: { tight: 0.4, aggro: 0.55, bluff: 0.35, face: 0.35 },
+  look: {
+    hat: "beret",
+    eyes: "o -",
+    mouth: "▽",
+    chin: "plain",
+    body: "jacket",
+    hatColor: C.orange,
+    skin: C.tan,
+    clothes: C.brown,
+  },
+  reward: "dutchcoin",
+  greet:
+    "Well, well. The other kid on the Avenue. They're talking about you, you know. Not as much as me.",
+  chat: [
+    "I'm gonna beat the Baron before you do. Write it down.",
+    "Every casino on this street, I've played it. Some of 'em even let me back in.",
+    "My granddad was a riverboat gambler. My dad was a riverboat gambler. I get seasick.",
+  ],
+  challenge: "Freezeout. Winner takes the lot. Try to keep up.",
+  winHand: ["Too easy.", "You're telegraphing, pal."],
+  loseHand: ["Lucky.", "Okay, okay. Don't get used to it."],
+  beaten: "...Fine. You got me this time. See you down the Avenue.",
+  victory: "Better luck next time, pal. You'll need it.",
+  after: "Next time. Next time for sure.",
+  tells: {
+    strong: ["whistles through his teeth", "flicks his lucky coin"],
+    weak: ["scratches under his beret", "talks too much"],
+    neutral: ["shuffles his chips", "leans back on two chair legs"],
+  },
+  tellTip: "That Dutch kid scratches under his beret when he's bluffing. Saw it twice.",
+};

@@ -123,3 +123,54 @@ export const SECURITY_LINES = [
 ];
 
 export const WAITRESS_LINES = ["Drinks? Anything to drink?", "Something to sip on, hon?"];
+
+/** The Players' Club (0.2): points earned at the house games, cashed in at any cashier cage. */
+export type ClubRewardId = "soda" | "cash" | "rabbitfoot" | "clover" | "dollar" | "suite";
+
+export interface ClubReward {
+  id: ClubRewardId;
+  label: string;
+  points: number;
+  text: string;
+  item?: ItemId;
+}
+
+export const CLUB_REWARDS: ClubReward[] = [
+  {
+    id: "soda",
+    label: "Comp drink",
+    points: 15,
+    text: "A Club Soda on the house: heat here drops by 25.",
+  },
+  { id: "cash", label: "Cash back", points: 60, text: "Three table minimums, in cash." },
+  {
+    id: "rabbitfoot",
+    label: "Rabbit's Foot",
+    points: 40,
+    text: "From the gift shop.",
+    item: "rabbitfoot",
+  },
+  {
+    id: "clover",
+    label: "Four-Leaf Clover",
+    points: 90,
+    text: "From the gift shop.",
+    item: "clover",
+  },
+  {
+    id: "dollar",
+    label: "Lucky Silver Dollar",
+    points: 120,
+    text: "From the gift shop.",
+    item: "dollar",
+  },
+  {
+    id: "suite",
+    label: "Comped suite upstairs",
+    points: 200,
+    text: "You sleep it off upstairs: heat and bans are cleared in every casino.",
+  },
+];
+
+/** House play earns a point per this much wagered, by casino tier (the house minimums). */
+export const COMP_UNIT = [5, 25, 50, 100, 250];

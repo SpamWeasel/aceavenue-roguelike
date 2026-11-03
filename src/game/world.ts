@@ -5,6 +5,7 @@ import { SHOPS, type ShopId } from "./data/shops";
 import { hashSeed, Rng } from "./rng";
 import { makeWheel, type WheelDef } from "./roulette";
 import { type MachineDef, makeMachine } from "./slots";
+import type { VpTableId } from "./videopoker";
 
 /** Map squares. */
 export const T = {
@@ -29,6 +30,7 @@ export const T = {
   cage: 18,
   lobby: 19,
   shelf: 20,
+  video: 21,
 } as const;
 export type Tile = (typeof T)[keyof typeof T];
 
@@ -46,7 +48,7 @@ export const walkable = (t: number) => WALKABLE.has(t);
 export const MAP_W = 74;
 export const MAP_H = 24;
 
-export type TableKind = "blackjack" | "roulette" | "craps" | "duel";
+export type TableKind = "blackjack" | "roulette" | "craps" | "baccarat" | "duel";
 
 export interface TableDef {
   id: string;
@@ -63,6 +65,17 @@ export interface TableDef {
   /** "the north-west", for gossip. */
   region: string;
   label: string;
+}
+
+/** A video poker machine. */
+export interface VideoSpot {
+  id: string;
+  x: number;
+  y: number;
+  table: VpTableId;
+  coin: number;
+  region: string;
+  n: number;
 }
 
 export interface MachineSpot {
@@ -101,7 +114,10 @@ export type NpcKind =
   | "bartender"
   | "roller"
   | "pedestrian"
-  | "collector";
+  | "collector"
+  | "millionaire"
+  | "pickpocket"
+  | "rival";
 
 export interface Npc {
   id: string;
@@ -115,6 +131,8 @@ export interface Npc {
   rollerId?: string;
   /** What they'll say (patrons and pedestrians). */
   line?: string;
+  /** A pickpocket who is right beside you and about to strike. */
+  ready?: boolean;
   /** A paid tip they're holding. */
   tip?: Tip;
 }
@@ -138,6 +156,7 @@ export interface Area {
   owner: Map<number, string>;
   tables: TableDef[];
   machines: MachineSpot[];
+  videos: VideoSpot[];
   doors: DoorDef[];
   signs: Sign[];
   npcs: Npc[];
@@ -163,6 +182,7 @@ function blankArea(id: string, name: string, kind: Area["kind"], fill: number): 
     owner: new Map(),
     tables: [],
     machines: [],
+    videos: [],
     doors: [],
     signs: [],
     npcs: [],
@@ -295,7 +315,16 @@ const GRID_Y0 = 8;
 const GRID_COLS = 7;
 const GRID_ROWS = 3;
 
-type Station = "blackjack" | "roulette" | "craps" | "slots" | "duel" | "decor" | "empty";
+type Station =
+  | "blackjack"
+  | "roulette"
+  | "craps"
+  | "baccarat"
+  | "slots"
+  | "video"
+  | "duel"
+  | "decor"
+  | "empty";
 
 /** Lays out one casino. The layout is fixed for the whole game (same seed, same floor). */
 export function buildCasino(casino: CasinoDef, gameSeed: number): Area {
@@ -366,6 +395,8 @@ export function buildCasino(casino: CasinoDef, gameSeed: number): Area {
   if (casino.roulette) for (let i = rng.int(1, 2); i > 0; i--) stations.push("roulette");
   if (casino.craps) stations.push("craps");
   for (let i = rng.int(2, 3); i > 0; i--) stations.push("slots");
+  stations.push("video");
+  if (casino.baccarat) stations.push("baccarat");
   for (let i = 0; i < casino.rollers.length; i++) stations.push("duel");
   while (stations.length < GRID_COLS * GRID_ROWS)
     stations.push(rng.chance(0.4) ? "decor" : "empty");
@@ -375,6 +406,7 @@ export function buildCasino(casino: CasinoDef, gameSeed: number): Area {
   let rouletteN = 0;
   let duelN = 0;
   let bankN = 0;
+  let videoN = 0;
   stations.forEach((kind, i) => {
     const cx = GRID_X0 + (i % GRID_COLS) * CELL_W;
     const cy = GRID_Y0 + Math.floor(i / GRID_COLS) * CELL_H;
@@ -472,6 +504,39 @@ export function buildCasino(casino: CasinoDef, gameSeed: number): Area {
           region,
           label: `${roller.short}'s table`,
         });
+        break;
+      }
+      case "baccarat": {
+        const b = casino.baccarat as NonNullable<CasinoDef["baccarat"]>;
+        rect(a, x, y, 6, 2, T.felt);
+        a.tables.push({
+          id: "baccarat",
+          kind: "baccarat",
+          x,
+          y,
+          w: 6,
+          h: 2,
+          min: b.min,
+          max: b.max,
+          region,
+          label: "Baccarat",
+        });
+        break;
+      }
+      case "video": {
+        videoN++;
+        for (let k = 0; k < 4; k++) {
+          setTile(a, x + k, y, T.video);
+          a.videos.push({
+            id: `v${videoN}-${k}`,
+            x: x + k,
+            y,
+            table: rng.pick(casino.video.tables),
+            coin: casino.video.coin,
+            region: `${region} video poker bank`,
+            n: k + 1,
+          });
+        }
         break;
       }
       case "decor":
