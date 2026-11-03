@@ -1,0 +1,48 @@
+# Windows builds for x64 and ARM64 PCs. Run with `pnpm dist`. Three ways to get the game:
+# - a zip to unpack anywhere and run AceAvenue.exe (no installation; the main download),
+# - a single portable .exe that runs without installing (unpacks itself on each launch),
+# - an installer with Start menu and desktop shortcuts.
+# All three keep saves in %APPDATA%\AceAvenue, so moving or deleting the game never loses them.
+appId: com.aceavenue.game
+productName: AceAvenue
+copyright: Copyright © 2026 AceAvenue
+directories:
+  buildResources: build
+  output: release/${version}
+files:
+  - out/**/*
+asar: true
+# Notes for testers beside AceAvenue.exe (in the zip and the installed folder).
+extraFiles:
+  - from: build/TESTERS.txt
+    to: README.txt
+win:
+  icon: build/icon.ico
+  # The zip's name; the portable exe and installer set their own below.
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  target:
+    - target: zip
+      arch:
+        - x64
+        - arm64
+    - target: portable
+      arch:
+        - x64
+        - arm64
+    - target: nsis
+      arch:
+        - x64
+        - arm64
+portable:
+  artifactName: ${productName}-${version}-portable-${arch}.${ext}
+  buildUniversalInstaller: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Ace Avenue
+  buildUniversalInstaller: false
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}

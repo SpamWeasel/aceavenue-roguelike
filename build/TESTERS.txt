@@ -1,0 +1,37 @@
+ACE AVENUE 0.1 - EARLY TEST BUILD (please read me)
+=================================================
+
+Thanks for testing Ace Avenue! It's an ASCII casino roguelike. You arrive on Ace Avenue with
+a few hundred dollars. Beat the high rollers of five casinos, win each boss's golden chip, and
+take on the Baron at the top of the Pinnacle.
+
+
+HOW TO RUN
+----------
+Zip: unpack it anywhere and run AceAvenue.exe. Portable exe: just run it. Installer: installs
+with Start menu and desktop shortcuts. Saves live in %APPDATA%\AceAvenue either way.
+
+
+THE BASICS
+----------
+- Move with the arrow keys, the number pad, or Q W E / A D / Z X C. S waits.
+- Walk INTO things to use them: tables, slot machines, the bar, people, shop doors.
+- I = your sheet and pockets, M = message log, ? = help, Esc = menu, F11 = fullscreen.
+- Point the mouse at anything for a description.
+- A controller works too.
+
+- High rollers stand by their private tables. Challenge them to blackjack or five-card draw;
+  you both put up their stake and play until one of you is broke.
+- Beat all three on a floor to open the VIP room and face the boss.
+- House games (blackjack, slots, roulette, craps) build your bankroll between duels.
+- Winning too much raises HEAT. At 100 heat security walks you out.
+- Go broke with nothing to pawn and an unpaid loan, and the run is over.
+
+
+WHAT TO LOOK FOR
+----------------
+- Anything that crashes, freezes, or looks wrong.
+- High rollers who feel unbeatable or too easy.
+- Whether heat feels fair.
+
+Have fun, and don't bet the rent.
