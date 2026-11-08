@@ -49,7 +49,14 @@ export const walkable = (t: number) => WALKABLE.has(t);
 export const MAP_W = 74;
 export const MAP_H = 24;
 
-export type TableKind = "blackjack" | "roulette" | "craps" | "baccarat" | "chuck" | "duel";
+export type TableKind =
+  | "blackjack"
+  | "roulette"
+  | "craps"
+  | "baccarat"
+  | "chuck"
+  | "tourney"
+  | "duel";
 
 export interface TableDef {
   id: string;
@@ -328,6 +335,7 @@ type Station =
   | "craps"
   | "baccarat"
   | "chuck"
+  | "tourney"
   | "slots"
   | "video"
   | "duel"
@@ -406,6 +414,7 @@ export function buildCasino(casino: CasinoDef, gameSeed: number): Area {
   stations.push("video");
   if (casino.baccarat) stations.push("baccarat");
   if (casino.chuck) stations.push("chuck", "chuck");
+  stations.push("tourney");
   for (let i = 0; i < casino.rollers.length; i++) stations.push("duel");
   while (stations.length < GRID_COLS * GRID_ROWS)
     stations.push(rng.chance(0.4) ? "decor" : "empty");
@@ -547,6 +556,22 @@ export function buildCasino(casino: CasinoDef, gameSeed: number): Area {
           max: ch.max,
           region,
           label: `Chuck-a-luck ${++chuckN}`,
+        });
+        break;
+      }
+      case "tourney": {
+        rect(a, x, y, 6, 2, T.felt);
+        a.tables.push({
+          id: "tourney",
+          kind: "tourney",
+          x,
+          y,
+          w: 6,
+          h: 2,
+          min: 0,
+          max: 0,
+          region,
+          label: "the tournament table",
         });
         break;
       }

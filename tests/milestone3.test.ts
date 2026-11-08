@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CHUCK_SPOTS, chuckReturn } from "../src/game/chuckaluck";
 import { CASINOS, ROLLER_BY_ID } from "../src/game/data/casinos";
-import { Game } from "../src/game/game";
+import { Game, SAVE_VERSION } from "../src/game/game";
 import {
   atLeast,
   beats,
@@ -196,6 +196,6 @@ describe("0.3 saves", () => {
     const old = JSON.parse(g.save());
     old.version = 2;
     const back = Game.load(JSON.stringify(old));
-    expect(back.s.version).toBe(3);
+    expect(back.s.version).toBe(SAVE_VERSION);
   });
 });

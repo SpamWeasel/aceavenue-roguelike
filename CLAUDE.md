@@ -44,7 +44,15 @@ setup (saves, smoke tests, packaging) is copied from it.
   the last with dice takes the pot) and `chuckaluck.ts` (`chuck` tables). Dutch never boards.
   The Insurance Policy (`claimPolicy`) pays half the stake on a lost duel unless you were
   caught cheating; `s.duel.stake` remembers the stake for it.
-- **Saves:** whole `State` as JSON, `SAVE_VERSION` 3 (`Game.load` fills `comps` and `rival`
+- **0.4 "Tournament Night":** `tournament.ts` (`Tournament`: five seats, one shared dealer, no
+  splits or insurance; `aiBet` bets by `TStyle` and chases/protects in the last three hands;
+  `stack()` counts the bet in play; `prize()` splits ties). Data in `data/tourney.ts`
+  (regulars, fees, prizes). A `tourney` table on every floor. `Game.tourneyField` is seeded
+  by `night` (noon to noon, so the motel always brings a new one); `s.tourneys` remembers
+  the night you last played each casino, `s.trophies` where you won.
+  `scripts/tourneys.mts` checks the prizes: betting like the table is about break-even.
+- **Saves:** whole `State` as JSON, `SAVE_VERSION` 4 (0.3 saves get empty tournament fields);
+  before that, 3 (`Game.load` fills `comps` and `rival`
   for 0.1 saves and moves you to the entry if a floor change put you inside a table; 0.2 saves
   need nothing new).
   3 slots in `%APPDATA%\AceAvenue\Saves` with rolling backups (from Rumble Row). A save is valid if it has numeric `version` and `cash`.

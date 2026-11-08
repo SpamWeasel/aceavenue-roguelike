@@ -1,9 +1,28 @@
-ACE AVENUE 0.3 - EARLY TEST BUILD (please read me)
+ACE AVENUE 0.4 - EARLY TEST BUILD (please read me)
 =================================================
 
 Thanks for testing Ace Avenue! It's an ASCII casino roguelike. You arrive on Ace Avenue with
 a few hundred dollars. Beat the high rollers of five casinos, win each boss's golden chip, and
 take on the Baron at the top of the Pinnacle.
+
+
+NEW IN 0.4 - "TOURNAMENT NIGHT"
+-------------------------------
+- Every casino (the riverboat too) runs a blackjack tournament once a night. Look for the
+  tournament table with the blinking gold crown on the casino floor.
+- Five players, one dealer, ten hands. Everyone starts with 1,000 tournament chips;
+  most chips at the end wins 3.5 times the entry fee and a gold trophy, second place
+  wins 1.5 times the fee.
+- Your opponents are some of the casino's own high rollers, sometimes Dutch, and eight
+  new tournament regulars - Granny Pearl, Tex Malone, Dr. Nakamura and friends - who
+  each bet in their own style and talk while they play.
+- You're playing the table, not the house: in the last hands, the leaders sit tight and
+  everyone behind them swings for it. Watch the stacks.
+- Played tonight's? A night at the motel brings the next one.
+- Your sheet and side panel show your trophies. Collect all six.
+- Fixed: the screen could sit on "...is thinking" after an opponent's move until you
+  pressed a key (poker duels and liar's dice).
+- Your 0.3 save carries over.
 
 
 NEW IN 0.3 - "RIVERBOAT"

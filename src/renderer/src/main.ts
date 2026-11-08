@@ -13,6 +13,7 @@ import { RouletteScreen } from "./screens/roulette";
 import { ShopScreen } from "./screens/shop";
 import { SlotsScreen } from "./screens/slots";
 import { RollerScreen, TalkScreen } from "./screens/talk";
+import { TourneyDeskScreen } from "./screens/tourney";
 import { VideoPokerScreen } from "./screens/videopoker";
 import { loadSettings } from "./settings";
 import { listSlots, readSlot, writeSlot } from "./storage";
@@ -177,6 +178,19 @@ async function smoke(app: App, scene: string): Promise<void> {
         for (const code of ["Enter", "Enter", "ArrowDown", "ArrowDown", "Enter", "KeyR"])
           press(code);
         await frames(120);
+      } else if (scene === "desk") {
+        casino("rustyspur");
+        g.s.trophies.push("coralgrotto");
+        app.push(new TourneyDeskScreen(app, play));
+      } else if (scene === "tourney") {
+        casino("rustyspur");
+        g.s.skills.cards = 1;
+        app.push(new TourneyDeskScreen(app, play));
+        press("Enter");
+        // Bet 150 and watch the players to your left play their hands.
+        for (const code of ["ArrowRight", "ArrowUp", "Enter"]) press(code);
+        await frames(150);
+        if (g.s.cash !== 500 - 50) errors.push(`the entry fee wasn't taken (${g.s.cash})`);
       } else if (scene === "club") {
         casino("rustyspur");
         g.s.comps = 75;

@@ -1,6 +1,7 @@
 import { type Card, cardName, newDeck, Shoe } from "./cards";
 import { C } from "./colors";
 import {
+  ALL_CASINOS,
   CASINO_ORDER,
   CASINOS,
   type CasinoDef,
@@ -39,8 +40,10 @@ import {
   type ShopId,
   STREET_LINES,
 } from "./data/shops";
+import { type Entrant, REGULARS, TOURNEY_FEE } from "./data/tourney";
 import type { PokerPersona } from "./poker";
 import { hashSeed, Rng } from "./rng";
+import { Tournament } from "./tournament";
 import {
   type Area,
   buildCasino,
@@ -57,7 +60,7 @@ import {
   walkable,
 } from "./world";
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export const POCKET_SIZE = 8;
 
 export type Difficulty = "easy" | "normal" | "hard";
@@ -133,6 +136,11 @@ export interface State {
   comps: number;
   /** Your rival Dutch (0.2): duels won and lost, and when you last met. */
   rival: { wins: number; losses: number; last: number; coin: boolean };
+  /** Tournaments (0.4): the day you last played in each casino, and where you've won one. */
+  tourneys: Partial<Record<CasinoId, number>>;
+  trophies: CasinoId[];
+  /** Tournament results: played, won, and money won in prizes. */
+  tourneyStats: { played: number; won: number; prizes: number };
   stats: {
     hands: number;
     duelsWon: number;
@@ -196,6 +204,24 @@ export function niceRound(n: number): number {
   return Math.round(n / mag) * mag;
 }
 
+export const ordinal = (n: number) =>
+  `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
+
+/** A high roller in a tournament seat, betting by their temperament. */
+export function rollerEntrant(r: RollerDef): Entrant {
+  const aggro = r.persona?.aggro ?? 0.5;
+  return {
+    id: r.id,
+    name: r.name,
+    short: r.short.replace(/^the /, "The "),
+    glyph: r.glyph,
+    color: r.color,
+    style: aggro >= 0.6 ? "wild" : aggro <= 0.35 ? "cautious" : "steady",
+    win: r.winHand,
+    lose: r.loseHand,
+  };
+}
+
 /** Any high roller by id, including the rival. */
 export function rollerById(id: string): RollerDef {
   return id === RIVAL.id ? RIVAL : ROLLER_BY_ID[id];
@@ -253,6 +279,9 @@ export class Game {
       stats: { hands: 0, duelsWon: 0, duelsLost: 0, biggestWin: 0, peak: cash },
       comps: 0,
       rival: { wins: 0, losses: 0, last: 0, coin: false },
+      tourneys: {},
+      trophies: [],
+      tourneyStats: { played: 0, won: 0, prizes: 0 },
       over: null,
       log: [],
     });
@@ -275,6 +304,10 @@ export class Game {
     // 0.1 saves: no comp points and no rival yet.
     s.comps ??= 0;
     s.rival ??= { wins: 0, losses: 0, last: 0, coin: false };
+    // 0.3 saves: no tournaments yet.
+    s.tourneys ??= {};
+    s.trophies ??= [];
+    s.tourneyStats ??= { played: 0, won: 0, prizes: 0 };
     s.version = SAVE_VERSION;
     const g = new Game(s);
     g.area = g.areaFor(s.area);
@@ -1290,6 +1323,104 @@ export class Game {
     );
     this.sound("lose");
     this.checkBroke();
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Tournament night (0.4)
+
+  /** Which night it is for tournaments: nights run noon to noon, so the motel always ends one. */
+  get night(): number {
+    return Math.floor((DAY_START + this.s.turn + this.s.clockShift - 12 * 60) / 1440);
+  }
+
+  /** The entry fee for tonight's tournament here. */
+  get tourneyFee(): number {
+    return TOURNEY_FEE[(this.casino?.tier ?? this.tier) - 1];
+  }
+
+  /** Why you can't enter tonight's tournament here, or null if you can. */
+  tourneyClosed(): string | null {
+    const c = this.casino;
+    if (!c) return "There's no tournament out here.";
+    if (this.s.tourneys[c.id] === this.night)
+      return "You've played tonight's tournament. The next one is tomorrow night.";
+    if (this.s.cash < this.tourneyFee)
+      return `The entry fee is ${money(this.tourneyFee)}. You have ${money(this.s.cash)}.`;
+    return null;
+  }
+
+  /** Tonight's other four players: some of this casino's high rollers, maybe Dutch, and regulars. */
+  tourneyField(): Entrant[] {
+    const c = this.casino as CasinoDef;
+    const day = this.night;
+    const rng = new Rng(hashSeed(this.s.seed, day, ALL_CASINOS.indexOf(c.id) + 1, 4040));
+    const field: Entrant[] = [];
+    const rollers = rng.shuffle([...c.rollers]).slice(0, rng.int(1, 2));
+    for (const r of rollers) field.push(rollerEntrant(r));
+    // Dutch plays tournaments on dry land.
+    if (!c.side && rng.chance(0.3)) field.push(rollerEntrant(RIVAL));
+    const regs = rng.shuffle([...REGULARS]);
+    while (field.length < 4) field.push(regs.pop() as Entrant);
+    return rng.shuffle(field);
+  }
+
+  /** Pays the fee and sits you down. */
+  startTourney(): Tournament | string {
+    const why = this.tourneyClosed();
+    if (why) return why;
+    const c = this.casino as CasinoDef;
+    const fee = this.tourneyFee;
+    this.pay(fee);
+    this.s.tourneys[c.id] = this.night;
+    this.s.comps += fee / this.compUnit;
+    this.s.tourneyStats.played++;
+    this.log(`You pay ${money(fee)} and take a seat at ${c.name}'s blackjack tournament.`, C.gold);
+    this.sound("shuffle");
+    const you: Entrant = {
+      id: "you",
+      name: this.s.name,
+      short: "You",
+      glyph: "@",
+      color: C.yellow,
+      style: "steady",
+      win: [],
+      lose: [],
+    };
+    return new Tournament(this.rng, new Shoe(6, this.rng), this.tourneyField(), you);
+  }
+
+  /** The tournament is over: prizes, a trophy for first place, and time gone by. */
+  endTourney(t: Tournament): { place: number; prize: number; trophy: boolean } {
+    const c = this.casino as CasinoDef;
+    const fee = this.tourneyFee;
+    const place = t.place(t.you);
+    const prize = t.prize(t.you, fee);
+    this.tick(30);
+    let trophy = false;
+    if (prize > 0) {
+      this.receive(prize);
+      this.s.tourneyStats.prizes += prize;
+    }
+    if (place === 1) {
+      this.s.tourneyStats.won++;
+      if (!this.s.trophies.includes(c.id)) {
+        this.s.trophies.push(c.id);
+        trophy = true;
+      }
+      this.log(
+        `You win ${c.name}'s blackjack tournament and ${money(prize)}!${trophy ? " They hand you a little gold trophy." : ""}`,
+        C.gold,
+      );
+      this.sound("bigwin");
+    } else if (prize > 0) {
+      this.log(`You finish second in the tournament: ${money(prize)}.`, C.lime);
+      this.sound("win");
+    } else {
+      this.log(`You finish ${ordinal(place)} in the tournament. No prize.`, C.gray);
+      this.sound("lose");
+    }
+    this.checkBroke();
+    return { place, prize, trophy };
   }
 
   // -------------------------------------------------------------------------------------------

@@ -26,6 +26,8 @@ const SCENES = [
   "pier",
   "dice",
   "chuck",
+  "desk",
+  "tourney",
   "club",
   "rival",
   "millionaire",

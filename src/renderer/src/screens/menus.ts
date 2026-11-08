@@ -1,5 +1,5 @@
 import { C } from "../../../game/colors";
-import { CASINO_ORDER, CASINOS } from "../../../game/data/casinos";
+import { ALL_CASINOS, CASINO_ORDER, CASINOS } from "../../../game/data/casinos";
 import { ITEMS, SKILL_ORDER, SKILLS } from "../../../game/data/items";
 import { DIFFICULTY, type Difficulty, Game, money } from "../../../game/game";
 import { SAVE_SLOTS, type SlotInfo } from "../../../shared/bridge";
@@ -630,6 +630,7 @@ const HELP_PAGES: { title: string; lines: string[] }[] = [
       "  ▣  Video poker - Jacks or Better (read the pay table on the glass!)",
       "  P B T  Baccarat (from the Starlight Lounge on)",
       "  ▒~  Chuck-a-luck, three dice in a birdcage (on the riverboat)",
+      "  ♛  The tournament table: one blackjack tournament a night",
       "The cashier cages are the Players' Club desk: house play earns points for perks.",
       "",
       "Gamblers (☺) know things. A white ☺ has gossip to sell: which slot is loose, which",
@@ -704,6 +705,28 @@ const HELP_PAGES: { title: string; lines: string[] }[] = [
       "hide their tells more often.",
       "",
       "Opponents notice when you bluff and they catch you. Bluff too often and they'll call.",
+    ],
+  },
+  {
+    title: "Tournament night",
+    lines: [
+      "Every casino runs one blackjack tournament a night at its tournament table (♛).",
+      "Pay the entry fee and sit down with four other players: some of the casino's high",
+      "rollers, maybe Dutch, and the tournament regulars who play all along the Avenue.",
+      "",
+      "Everyone starts with 1,000 tournament chips (they aren't money) and plays ten hands",
+      "against one dealer. Bets are 10 to 500. Six decks, the dealer stands on soft 17,",
+      "blackjack pays 3:2, double on any two cards, no splits and no insurance.",
+      "",
+      "Whoever has the most chips after ten hands wins 3.5 times the entry fee and a gold",
+      "trophy; second place wins 1.5 times the fee. Tied players split their prizes.",
+      "",
+      "You're not playing the house, you're playing the table. Early on, small bets keep you",
+      "alive. In the last few hands, look at the leader: if you're behind, bet enough to",
+      "catch up; if you're ahead, bet small and make them come to you.",
+      "",
+      "Played tonight? The next one is tomorrow night (a night at the motel gets you there).",
+      "Win a trophy at every casino, the riverboat too, for a full shelf.",
     ],
   },
   {
@@ -920,6 +943,12 @@ export class SheetScreen implements Screen {
       x,
       y++,
       `Players' Club points ${Math.floor(s.comps)}   Against Dutch: ${s.rival.wins} won, ${s.rival.losses} lost`,
+      C.gray,
+    );
+    t.text(
+      x,
+      y++,
+      `Tournaments played ${s.tourneyStats.played}, won ${s.tourneyStats.won}, prizes ${money(s.tourneyStats.prizes)}   Trophies ${s.trophies.length} of ${ALL_CASINOS.length}`,
       C.gray,
     );
     y++;

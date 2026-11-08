@@ -26,6 +26,7 @@ import { RouletteScreen } from "./roulette";
 import { ShopScreen } from "./shop";
 import { SlotsScreen } from "./slots";
 import { BarScreen, RollerScreen, TalkScreen } from "./talk";
+import { TourneyDeskScreen } from "./tourney";
 import { VideoPokerScreen } from "./videopoker";
 
 const MAP_X = 1;
@@ -115,6 +116,7 @@ export class PlayScreen implements Screen {
         else if (it.table.kind === "craps") app.push(new CrapsScreen(app, this, it.table));
         else if (it.table.kind === "baccarat") app.push(new BaccaratScreen(app, this, it.table));
         else if (it.table.kind === "chuck") app.push(new ChuckScreen(app, this, it.table));
+        else if (it.table.kind === "tourney") app.push(new TourneyDeskScreen(app, this));
         break;
       case "video":
         app.push(new VideoPokerScreen(app, this, it.spot));
@@ -202,6 +204,19 @@ export class PlayScreen implements Screen {
                 ch = ly === 0 ? (lx === 1 || lx === 2 ? "▒" : "~") : "•";
                 fg =
                   ly === 0 ? (lx === 1 || lx === 2 ? C.gold : C.paper) : lx % 2 ? C.red : C.paper;
+              } else if (table.kind === "tourney") {
+                // Five seats around one dealer, and a trophy on the rail.
+                ch = ly === 0 ? (lx === 0 ? "♛" : lx === 3 ? "d" : "~") : lx === 0 ? " " : "◦";
+                fg =
+                  ly === 0
+                    ? lx === 0
+                      ? blink % 2
+                        ? C.gold
+                        : C.amber
+                      : lx === 3
+                        ? C.white
+                        : C.paper
+                    : C.gold;
               } else if (table.kind === "duel") {
                 ch = "♠♥♦♣"[(lx + ly) % 4];
                 fg = (lx + ly) % 4 === 1 || (lx + ly) % 4 === 2 ? C.red : C.black;
@@ -361,6 +376,10 @@ export class PlayScreen implements Screen {
       if (table.kind === "roulette")
         return `${table.label}: ${limits}. ${table.wheel?.doubleZero ? "Double zero" : "Single zero"} wheel.`;
       if (table.kind === "baccarat") return `Baccarat: ${limits}. Bet Player, Banker or Tie.`;
+      if (table.kind === "tourney") {
+        const why = g.tourneyClosed();
+        return `Blackjack tournament: five players, ten hands, most chips wins. Entry ${money(g.tourneyFee)}.${why && g.s.tourneys[g.casino?.id ?? "rustyspur"] === g.night ? " You've played tonight." : ""}`;
+      }
       if (table.kind === "chuck")
         return `${table.label}: ${limits} a spot. Three dice in a birdcage; bet a number, High, Low or Any Triple.`;
       return `Craps: ${limits}.`;
@@ -458,6 +477,13 @@ export class PlayScreen implements Screen {
       const has = s.chips.includes(id);
       t.put(x + 6 + i * 2, y, has ? "●" : "○", has ? CASINOS[id].theme.accent : C.dim);
     });
+    if (s.trophies.length) {
+      y++;
+      t.text(x, y, "Trophies ", C.gray);
+      s.trophies.forEach((id, i) => {
+        t.put(x + 9 + i * 2, y, "♛", CASINOS[id].theme.accent);
+      });
+    }
     y += 2;
     t.text(x, y++, "Skills", C.light);
     for (const id of SKILL_ORDER) {
